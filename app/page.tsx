@@ -10,7 +10,7 @@ export default function HomePage() {
   const thesisParts = site.thesis.split(/(\{noise\}|\{signal\})/g)
 
   return (
-    <main id="main">
+    <main id="main" style={{ paddingTop: '56px' }}>
       <section style={{ padding: '4rem 1.5rem' }}>
         <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em' }}>
           {site.role.toUpperCase()}

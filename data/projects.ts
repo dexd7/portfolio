@@ -251,7 +251,7 @@ export const projects = [
     layout: 'systems',
     links: {
       // TODO(vihaan): replace once the repo is public.
-      repo: 'https://github.com/vihaansarin/portfolio-website',
+      repo: 'https://github.com/dexd7/portfolio.git',
       internal: '/colophon',
     },
     cover: { type: 'generative', seed: 6, hue: 90 },

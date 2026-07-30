@@ -13,8 +13,8 @@
   --color-signal: var(--color-signal);
   --color-static: var(--color-static);
 
-  --font-sans: var(--font-display);
-  --font-mono: var(--font-mono);
+  --font-sans: var(--font-switzer), var(--font-display-fallback);
+  --font-mono: var(--font-geist-mono), var(--font-mono-fallback);
 }
 
 * {
@@ -43,7 +43,7 @@ html {
 body {
   background: var(--color-canvas);
   color: var(--color-text);
-  font-family: var(--font-display), var(--font-mono-fallback, sans-serif);
+  font-family: var(--font-sans);
 }
 
 ::selection {
@@ -73,4 +73,139 @@ body {
 .skip-link:focus {
   left: 1rem;
   top: 1rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* -------------------------------------------------------------------- */
+/* Typography scale — one class per token in data/theme.config.ts       */
+/* -------------------------------------------------------------------- */
+
+.text-display-xl,
+.text-display-l,
+.text-h2,
+.text-h3,
+.text-body-l,
+.text-body {
+  font-family: var(--font-sans);
+}
+
+.text-label,
+.text-caption {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.text-display-xl {
+  font-size: var(--font-size-display-xl);
+  letter-spacing: var(--tracking-display-xl);
+  line-height: var(--leading-display-xl);
+}
+.text-display-l {
+  font-size: var(--font-size-display-l);
+  letter-spacing: var(--tracking-display-l);
+  line-height: var(--leading-display-l);
+}
+.text-h2 {
+  font-size: var(--font-size-h2);
+  letter-spacing: var(--tracking-h2);
+  line-height: var(--leading-h2);
+}
+.text-h3 {
+  font-size: var(--font-size-h3);
+  letter-spacing: var(--tracking-h3);
+  line-height: var(--leading-h3);
+}
+.text-body-l {
+  font-size: var(--font-size-body-l);
+  letter-spacing: var(--tracking-body-l);
+  line-height: var(--leading-body-l);
+}
+.text-body {
+  font-size: var(--font-size-body);
+  letter-spacing: var(--tracking-body);
+  line-height: var(--leading-body);
+}
+.text-label {
+  font-size: var(--font-size-label);
+  letter-spacing: var(--tracking-label);
+  line-height: var(--leading-label);
+}
+.text-caption {
+  font-size: var(--font-size-caption);
+  letter-spacing: var(--tracking-caption);
+  line-height: var(--leading-caption);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------------- */
+/* Motion primitives                                                     */
+/* -------------------------------------------------------------------- */
+
+.resolve {
+  opacity: 0;
+  filter: blur(6px);
+  transform: translateY(12px);
+  transition:
+    opacity var(--duration-reveal) var(--ease-resolve),
+    filter var(--duration-reveal) var(--ease-resolve),
+    transform var(--duration-reveal) var(--ease-resolve);
+  will-change: opacity, filter, transform;
+}
+.resolve[data-visible='true'] {
+  opacity: 1;
+  filter: blur(0px);
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .resolve {
+    filter: none;
+    transform: none;
+    transition-duration: var(--duration-micro);
+  }
+}
+
+.hairline {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--duration-reveal) var(--ease-resolve);
+}
+.hairline[data-visible='true'] {
+  transform: scaleX(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hairline {
+    transition-duration: var(--duration-micro);
+  }
+}
+
+.magnetic {
+  transition: transform var(--duration-ui) var(--ease-settle);
+  will-change: transform;
+}
+
+.cursor-field {
+  position: relative;
+}
+.cursor-dot {
+  transition: opacity var(--duration-ui) var(--ease-settle);
+  opacity: var(--dot-base-opacity, 0.25);
+}
+.cursor-field[data-active='true'] .cursor-dot {
+  opacity: calc(
+    var(--dot-base-opacity, 0.25) + (1 - var(--dot-base-opacity, 0.25)) * var(--dot-proximity, 0)
+  );
 }
