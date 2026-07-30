@@ -1,0 +1,40 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# generated — derived from data/theme.config.ts at build time
+/app/generated-tokens.css
+/data/generated/
+
+# misc
+.DS_Store
+*.pem
+.vercel
+*.tsbuildinfo
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env
+.env
+.env*.local
+
+# editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# source material (not for the public repo)
+/profile*.pdf
