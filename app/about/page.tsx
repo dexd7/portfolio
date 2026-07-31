@@ -3,9 +3,8 @@ import { site } from '@/data/site.config'
 import { education } from '@/data/education'
 import { now } from '@/data/now'
 import { Section } from '@/components/layout/Section'
-import { Container } from '@/components/layout/Container'
 import { Resolve } from '@/components/primitives/Resolve'
-import { Portrait } from '@/components/about/Portrait'
+import { PortraitStage } from '@/components/about/PortraitStage'
 import { Timeline } from '@/components/about/Timeline'
 import { Signals } from '@/components/sections/Signals'
 import { Contact } from '@/components/sections/Contact'
@@ -32,9 +31,9 @@ export default function AboutPage() {
                 <h1 className="text-display-l max-w-2xl">Hi, I&apos;m {site.name}.</h1>
               </Resolve>
 
-              <div className="mt-10 max-w-2xl space-y-6">
+              <div className="mt-10 max-w-2xl space-y-7">
                 <Resolve index={2}>
-                  <p className="text-body-l text-[var(--color-text-secondary)]">
+                  <p className="text-[1.3rem] leading-[1.65] text-[var(--color-text-secondary)]">
                     I got into programming by wanting to know what was underneath the tools I was already using — what
                     a shell actually does between typing a command and a process running, what Spark is doing
                     underneath a DataFrame call. That curiosity turned into two systems projects built from scratch in
@@ -43,7 +42,7 @@ export default function AboutPage() {
                   </p>
                 </Resolve>
                 <Resolve index={3}>
-                  <p className="text-body-l text-[var(--color-text-secondary)]">
+                  <p className="text-[1.3rem] leading-[1.65] text-[var(--color-text-secondary)]">
                     I'm a full-stack engineer who's most comfortable moving between the two ends of a system — React
                     on one side, FastAPI and PostgreSQL on the other, with enough systems-level understanding
                     underneath to know why a pipeline is slow instead of just guessing. At Innover, that meant
@@ -52,7 +51,7 @@ export default function AboutPage() {
                   </p>
                 </Resolve>
                 <Resolve index={4}>
-                  <p className="text-body-l text-[var(--color-text-secondary)]">
+                  <p className="text-[1.3rem] leading-[1.65] text-[var(--color-text-secondary)]">
                     I'm finishing my CS + Data Science degree at UW–Madison in May 2026, and looking for full-stack or
                     backend roles starting this year. Open to relocating.
                   </p>
@@ -70,21 +69,23 @@ export default function AboutPage() {
             </div>
 
             <Resolve index={1}>
-              <Portrait src="/images/vihaan-portrait.jpg" alt={`${site.name}, UW–Madison, 2026`} />
+              <PortraitStage src="/images/vihaan-portrait.jpg" alt={`${site.name}, UW–Madison, 2026`} />
             </Resolve>
           </div>
         </Section>
 
-        <Section index={undefined} label="Experience">
+        <Section index={undefined} label="Experience" compact>
           <Timeline />
         </Section>
 
-        <Section index={undefined} label="Education">
+        <Section index={undefined} label="Education" compact>
           <div className="space-y-8">
             {education.map((entry) => (
               <div key={entry.id}>
                 <p className="text-h3">{entry.institution}</p>
-                {entry.credential && <p className="text-body text-[var(--color-text-secondary)]">{entry.credential}</p>}
+                {entry.credential && (
+                  <p className="text-body-l mt-1 text-[var(--color-text-secondary)]">{entry.credential}</p>
+                )}
                 <p className="text-caption mt-1 text-[var(--color-text-dim)]">
                   {entry.location ? `${entry.location} · ` : ''}
                   {formatEduRange(entry.start, entry.end)}
@@ -95,14 +96,14 @@ export default function AboutPage() {
           </div>
         </Section>
 
-        <Signals id="about-signals" index={undefined} label="Signals" />
+        <Signals id="about-signals" index={undefined} label="Signals" compact />
 
-        <Section index={undefined} label="Currently">
+        <Section index={undefined} label="Currently" compact>
           <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             {now.items.map((item) => (
               <div key={item.label}>
                 <dt className="text-label text-[var(--color-text-dim)]">{item.label}</dt>
-                <dd className="text-body mt-1 text-[var(--color-text-secondary)]">
+                <dd className="text-body-l mt-1 text-[var(--color-text-secondary)]">
                   {item.href ? (
                     <a href={item.href} className="hover:text-[var(--color-signal)]">
                       {item.value}
@@ -117,7 +118,7 @@ export default function AboutPage() {
           <p className="text-caption mt-8 text-[var(--color-text-dim)]">Last updated {now.updated}.</p>
         </Section>
 
-        <Contact id="about-contact" index={undefined} label="Let's talk" />
+        <Contact id="about-contact" index={undefined} label="Let's talk" compact />
       </main>
     </CrossHighlightProvider>
   )

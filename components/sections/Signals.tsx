@@ -46,6 +46,7 @@ interface SignalsProps {
   id?: string
   index?: number
   label?: string
+  compact?: boolean
 }
 
 /**
@@ -55,9 +56,9 @@ interface SignalsProps {
  * rows that prove it, and vice versa — the cross-highlight is driven
  * entirely by `proves` / `provenBy` in the data layer, via CrossHighlightContext.
  */
-export function Signals({ id = 'signals', index = 3, label = 'Signals' }: SignalsProps) {
+export function Signals({ id = 'signals', index = 3, label = 'Signals', compact }: SignalsProps) {
   return (
-    <Section id={id} index={index} label={label}>
+    <Section id={id} index={index} label={label} compact={compact}>
       <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
         {skillGroups.map((group, gi) => (
           <Resolve key={group.id} index={gi}>

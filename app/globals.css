@@ -41,7 +41,7 @@
     --color-ink-400: #444444;
     --color-ink-200: #222222;
     --color-ink-050: #000000;
-    --color-signal: #8a5200;
+    --color-signal: #086c7a;
     --color-static: #666666;
   }
 }
@@ -193,17 +193,23 @@ body {
 .resolve {
   opacity: 0;
   filter: blur(6px);
-  transform: translateY(12px);
+  transform: translateY(14px) scale(0.97);
   transition:
     opacity var(--duration-reveal) var(--ease-resolve),
     filter var(--duration-reveal) var(--ease-resolve),
     transform var(--duration-reveal) var(--ease-resolve);
   will-change: opacity, filter, transform;
 }
+.resolve[data-direction='left'] {
+  transform: translateX(-48px) scale(0.97);
+}
+.resolve[data-direction='right'] {
+  transform: translateX(48px) scale(0.97);
+}
 .resolve[data-visible='true'] {
   opacity: 1;
   filter: blur(0px);
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 @media (prefers-reduced-motion: reduce) {
   .resolve {

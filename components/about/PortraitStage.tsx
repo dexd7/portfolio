@@ -1,0 +1,67 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { Portrait } from './Portrait'
+import { PortraitField } from './PortraitField'
+
+interface PortraitStageProps {
+  src: string
+  alt: string
+}
+
+/**
+ * The About page portrait, staged: the resolving node ring around it, a
+ * gentle float while it's in view, and an accelerating "fly up and out"
+ * exit (rising, fading, shrinking slightly) as it scrolls past the top of
+ * the viewport. All written directly to the image wrapper's style in a
+ * scroll listener — no React state, so scrolling never re-renders this tree.
+ */
+export function PortraitStage({ src, alt }: PortraitStageProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const imgWrapRef = useRef<HTMLDivElement>(null)
+  const reducedMotion = useReducedMotion()
+
+  useEffect(() => {
+    if (reducedMotion) return
+    const onScroll = () => {
+      const node = containerRef.current
+      const imgWrap = imgWrapRef.current
+      if (!node || !imgWrap) return
+      const rect = node.getBoundingClientRect()
+
+      if (rect.top < 0) {
+        // Exiting through the top of the viewport: accelerate up and out.
+        const exit = Math.min(1.4, -rect.top / rect.height)
+        const translateY = -exit * 220
+        const scale = 1 - Math.min(exit, 1) * 0.18
+        const opacity = Math.max(0, 1 - exit * 1.1)
+        imgWrap.style.transform = `translateY(${translateY.toFixed(1)}px) scale(${scale.toFixed(3)})`
+        imgWrap.style.opacity = opacity.toFixed(3)
+      } else {
+        // Still below the viewport top: a gentle float, centered on zero.
+        const viewportCenter = window.innerHeight / 2
+        const elementCenter = rect.top + rect.height / 2
+        const offset = (elementCenter - viewportCenter) * 0.06
+        imgWrap.style.transform = `translateY(${offset.toFixed(1)}px) scale(1)`
+        imgWrap.style.opacity = '1'
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    onScroll()
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <PortraitField containerRef={containerRef} />
+      <div ref={imgWrapRef} className="relative will-change-transform">
+        <Portrait src={src} alt={alt} />
+      </div>
+    </div>
+  )
+}

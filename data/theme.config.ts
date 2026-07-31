@@ -9,32 +9,31 @@
 
 export const colors = {
   dark: {
-    // Lifted charcoal, not pure black — same ladder as before, shifted one
-    // step lighter (each value reuses the prior tier's already-validated
-    // shade) plus one new, lighter border tier. Contrast ratios recomputed
-    // against the new #101215 canvas — see data/theme.config.ts history.
-    ink950: '#101215', // canvas
-    ink900: '#16191D', // elevated surface
-    ink800: '#21262C', // subtle fill
-    ink700: '#2C323A', // hairline / border
-    ink500: '#565E67', // decorative marks only — never text (2.9:1, fails AA)
-    ink400: '#7C858F', // muted text — 5.0:1
-    ink200: '#A8B0B8', // secondary text — 8.6:1
-    ink050: '#E8EBED', // primary text — 15.7:1 (never pure white: OLED halation)
-    signal: '#FFB020', // the accent — 10.3:1
-    static: '#5B6672', // the "unresolved" state
+    // Dark navy, not neutral charcoal — same ladder logic as before
+    // (each tier a step lighter than the last), re-verified against the
+    // new #0A0E16 canvas.
+    ink950: '#0A0E16', // canvas
+    ink900: '#0F1520', // elevated surface
+    ink800: '#161F2E', // subtle fill
+    ink700: '#20293B', // hairline / border
+    ink500: '#4C5C74', // decorative marks only — never text (2.8:1, fails AA)
+    ink400: '#7C90AA', // muted text — 5.9:1
+    ink200: '#AEBED2', // secondary text — 10.2:1
+    ink050: '#E7EDF5', // primary text — 16.4:1 (never pure white: OLED halation)
+    signal: '#22D3EE', // the accent — cyan, 10.7:1
+    static: '#3A4F68', // the "unresolved" state — muted dark blue
   },
   light: {
-    ink950: '#F4F2ED', // canvas — warm paper, not white
-    ink900: '#EAE7DF',
-    ink800: '#DDD9CF',
-    ink700: '#C7C2B5',
-    ink500: '#8B8578',
-    ink400: '#5C574C',
-    ink200: '#3A362E',
-    ink050: '#161410',
-    signal: '#8A5200', // darkened for text — 5.7:1 (bright #FFB020 is 3.8:1, fails)
-    static: '#8B8578',
+    ink950: '#EEF3F8', // canvas — cool paper, not white
+    ink900: '#E1E9F1',
+    ink800: '#CFDAE7',
+    ink700: '#B7C6D9',
+    ink500: '#6E7F97',
+    ink400: '#48566B',
+    ink200: '#293445',
+    ink050: '#0B111C',
+    signal: '#086C7A', // darkened teal for text — 5.5:1 (bright #22D3EE is 1.6:1, fails)
+    static: '#6E7F97',
   },
 } as const
 

@@ -12,19 +12,21 @@ interface SectionProps {
   /** Eyebrow label, e.g. "SELECTED WORK". */
   label?: string
   wide?: boolean
+  /** Tighter vertical rhythm for content-dense pages (About) — full rhythm stays the default everywhere else. */
+  compact?: boolean
 }
 
 /**
  * The vertical rhythm unit for the whole site — every homepage movement and
  * every page section is a <Section>, so spacing never drifts per-page.
  */
-export function Section({ children, id, className, index, label, wide }: SectionProps) {
+export function Section({ children, id, className, index, label, wide, compact }: SectionProps) {
   return (
     <section
       id={id}
       data-section-index={index !== undefined ? pad2(index) : undefined}
       className={cn('relative', className)}
-      style={{ paddingBlock: 'var(--section-rhythm)' }}
+      style={{ paddingBlock: compact ? 'clamp(56px, 8vh, 112px)' : 'var(--section-rhythm)' }}
       aria-label={label}
     >
       <Container wide={wide}>

@@ -14,7 +14,7 @@ function mulberry32(seed: number) {
   }
 }
 
-const BASE_HUE = 38 // the site's amber
+const BASE_HUE = 189 // the site's cyan
 const DOT_COUNT = 48
 
 interface ProjectCoverProps {

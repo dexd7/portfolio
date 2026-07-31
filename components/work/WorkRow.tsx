@@ -31,7 +31,7 @@ export function WorkRow({ project, index }: WorkRowProps) {
   const href = project.links.internal ?? project.links.live ?? project.links.repo ?? '#'
 
   return (
-    <Resolve index={index}>
+    <Resolve index={index} direction={index % 2 === 0 ? 'left' : 'right'}>
       <Link
         href={href}
         onMouseEnter={() => setHovered({ kind: 'project', id: project.slug })}

@@ -11,15 +11,16 @@ interface ContactProps {
   id?: string
   index?: number
   label?: string
+  compact?: boolean
 }
 
 /** Direct, generous, one click to email. Homepage's closing movement — also reused on /about. */
-export function Contact({ id = 'contact', index = 4, label = 'Signal / end' }: ContactProps) {
+export function Contact({ id = 'contact', index = 4, label = 'Signal / end', compact }: ContactProps) {
   const time = useLocalTime(site.timezone)
   const socials = site.socials.filter((s) => s.id !== 'email')
 
   return (
-    <Section id={id} index={index} label={label}>
+    <Section id={id} index={index} label={label} compact={compact}>
       <Resolve>
         <h2 className="text-display-l">Let&apos;s build something.</h2>
       </Resolve>

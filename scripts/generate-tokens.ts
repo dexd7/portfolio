@@ -54,14 +54,12 @@ ${typeVars()}
   --radius-soft: ${radius.soft};
 }
 
+/* Dark is canonical (see data/theme.config.ts / the design blueprint) — it
+   is NOT auto-switched by prefers-color-scheme, since no theme toggle exists
+   yet to opt back in and the light palette has never been visually verified.
+   Reserved for a future explicit toggle that sets data-theme='light'. */
 :root[data-theme='light'] {
 ${colorVars(colors.light)}
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) {
-${colorVars(colors.light, '    ')}
-  }
 }
 `
 
