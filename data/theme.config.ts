@@ -9,15 +9,19 @@
 
 export const colors = {
   dark: {
-    ink950: '#0A0B0D', // canvas
-    ink900: '#101215', // elevated surface
-    ink800: '#16191D', // subtle fill
-    ink700: '#21262C', // hairline / border
-    ink500: '#565E67', // decorative marks only — never text (4.1:1, fails AA)
-    ink400: '#7C858F', // muted text — 5.3:1```
-    ink200: '#A8B0B8', // secondary text — 9.0:1
-    ink050: '#E8EBED', // primary text — 16.4:1 (never pure white: OLED halation)
-    signal: '#FFB020', // the accent — 10.8:1
+    // Lifted charcoal, not pure black — same ladder as before, shifted one
+    // step lighter (each value reuses the prior tier's already-validated
+    // shade) plus one new, lighter border tier. Contrast ratios recomputed
+    // against the new #101215 canvas — see data/theme.config.ts history.
+    ink950: '#101215', // canvas
+    ink900: '#16191D', // elevated surface
+    ink800: '#21262C', // subtle fill
+    ink700: '#2C323A', // hairline / border
+    ink500: '#565E67', // decorative marks only — never text (2.9:1, fails AA)
+    ink400: '#7C858F', // muted text — 5.0:1
+    ink200: '#A8B0B8', // secondary text — 8.6:1
+    ink050: '#E8EBED', // primary text — 15.7:1 (never pure white: OLED halation)
+    signal: '#FFB020', // the accent — 10.3:1
     static: '#5B6672', // the "unresolved" state
   },
   light: {
@@ -35,24 +39,39 @@ export const colors = {
 } as const
 
 export const type = {
+  // Bebas Neue: display headlines only (name, thesis, big section titles).
+  // Condensed and all-caps by design — sized larger and tracked looser than
+  // a normal-width grotesk would need, to keep it legible rather than
+  // over-compressed.
   display: {
-    family: 'Switzer',
-    fallback:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    family: 'Bebas Neue',
+    fallback: 'Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif',
+  },
+  // Fivo Sans Modern Heavy Oblique: a single heavy italic cut, reserved for
+  // the {noise} / {signal} thesis words — an accent, never body copy.
+  accent: {
+    family: 'Fivo Sans Modern',
+    fallback: '"Arial Black", sans-serif',
+  },
+  // Geist Sans: body copy, nav, UI — everywhere Bebas Neue would be
+  // unreadable at length.
+  body: {
+    family: 'Geist Sans',
+    fallback: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   },
   mono: {
     family: 'Geist Mono',
     fallback: 'ui-monospace, "SF Mono", Menlo, monospace',
   },
   scale: {
-    displayXl: { size: 'clamp(3.5rem, 11vw, 10rem)', tracking: '-0.04em', lh: '0.92' },
-    displayL: { size: 'clamp(2.5rem, 6vw, 5rem)', tracking: '-0.03em', lh: '1.00' },
-    h2: { size: 'clamp(1.75rem, 3vw, 2.75rem)', tracking: '-0.02em', lh: '1.10' },
-    h3: { size: '1.25rem', tracking: '-0.01em', lh: '1.30' },
-    bodyL: { size: '1.125rem', tracking: '0', lh: '1.60' },
-    body: { size: '1rem', tracking: '0', lh: '1.65' },
-    label: { size: '0.6875rem', tracking: '0.14em', lh: '1.20' },
-    caption: { size: '0.75rem', tracking: '0.02em', lh: '1.40' },
+    displayXl: { size: 'clamp(4.5rem, 14vw, 13rem)', tracking: '0.01em', lh: '0.90' },
+    displayL: { size: 'clamp(3rem, 8vw, 6.5rem)', tracking: '0.01em', lh: '0.95' },
+    h2: { size: 'clamp(2rem, 4vw, 3.25rem)', tracking: '0', lh: '1.05' },
+    h3: { size: '1.5rem', tracking: '0', lh: '1.15' },
+    bodyL: { size: '1.25rem', tracking: '0', lh: '1.60' },
+    body: { size: '1.0625rem', tracking: '0', lh: '1.65' },
+    label: { size: '0.75rem', tracking: '0.14em', lh: '1.20' },
+    caption: { size: '0.8125rem', tracking: '0.02em', lh: '1.40' },
   },
 } as const
 

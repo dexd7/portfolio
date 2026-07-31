@@ -13,12 +13,37 @@
   --color-signal: var(--color-signal);
   --color-static: var(--color-static);
 
-  --font-sans: var(--font-switzer), var(--font-display-fallback);
-  --font-mono: var(--font-geist-mono), var(--font-mono-fallback);
+  /* Nested var()-fallback (not comma-separated font stacks) so each role
+     degrades gracefully if its next/font variable isn't defined yet — e.g.
+     --font-accent works today, using the fallback stack, before Fivo Sans
+     Modern is wired into lib/fonts.ts. */
+  --font-display: var(--font-bebas, var(--font-display-fallback));
+  --font-accent: var(--font-fivo, var(--font-accent-fallback));
+  --font-sans: var(--font-geist-sans, var(--font-body-fallback));
+  --font-mono: var(--font-geist-mono, var(--font-mono-fallback));
 }
 
 * {
   border-color: var(--color-border);
+}
+
+/* Print: remap the underlying ink tokens to paper-safe values. Every
+   derived color (--color-canvas, --color-text, etc, in the @theme block
+   above) re-reads these at use time, so this one block repaints the whole
+   page for print without per-component overrides. */
+@media print {
+  :root {
+    --color-ink-950: #ffffff;
+    --color-ink-900: #ffffff;
+    --color-ink-800: #ffffff;
+    --color-ink-700: #cccccc;
+    --color-ink-500: #666666;
+    --color-ink-400: #444444;
+    --color-ink-200: #222222;
+    --color-ink-050: #000000;
+    --color-signal: #8a5200;
+    --color-static: #666666;
+  }
 }
 
 html {
@@ -94,7 +119,11 @@ body {
 .text-display-xl,
 .text-display-l,
 .text-h2,
-.text-h3,
+.text-h3 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+}
+
 .text-body-l,
 .text-body {
   font-family: var(--font-sans);
@@ -104,6 +133,12 @@ body {
 .text-caption {
   font-family: var(--font-mono);
   text-transform: uppercase;
+}
+
+.text-accent {
+  font-family: var(--font-accent);
+  font-style: italic;
+  font-weight: 800;
 }
 
 .text-display-xl {
@@ -208,4 +243,12 @@ body {
   opacity: calc(
     var(--dot-base-opacity, 0.25) + (1 - var(--dot-base-opacity, 0.25)) * var(--dot-proximity, 0)
   );
+}
+
+/* SVG animateMotion isn't a CSS transition/animation, so the blanket
+   reduced-motion rule above doesn't touch it — gate it explicitly. */
+@media (prefers-reduced-motion: reduce) {
+  .diagram-pulse {
+    display: none;
+  }
 }

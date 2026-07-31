@@ -1,11 +1,12 @@
 import { EducationSchema, type Education } from './schema'
 import { z } from 'zod'
 
-export const education = [
+export const education: Education[] = [
   {
     id: 'uw-madison',
     institution: 'University of Wisconsin–Madison',
     credential: 'Bachelor of Science, Computer Science & Data Science',
+    detail: 'GPA: 3.74',
     location: 'Madison, WI',
     start: '2022-09',
     end: '2026-05',

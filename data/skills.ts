@@ -6,7 +6,7 @@ import { z } from 'zod'
  * work index cross-highlight each other from these arrays — no bespoke
  * wiring, just data both sides read.
  */
-export const skillGroups = [
+export const skillGroups: SkillGroup[] = [
   {
     id: 'languages',
     label: 'Languages',

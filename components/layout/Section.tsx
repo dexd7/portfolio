@@ -28,9 +28,9 @@ export function Section({ children, id, className, index, label, wide }: Section
       aria-label={label}
     >
       <Container wide={wide}>
-        {label !== undefined && index !== undefined && (
+        {label !== undefined && (
           <p className="text-label text-[var(--color-text-dim)] mb-8 flex items-center gap-3">
-            <span className="text-[var(--color-signal)]">{pad2(index)}</span>
+            {index !== undefined && <span className="text-[var(--color-signal)]">{pad2(index)}</span>}
             <span>{label}</span>
           </p>
         )}

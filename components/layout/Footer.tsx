@@ -8,7 +8,7 @@ export function Footer() {
   const sourceHref = projectBySlug('this-site')?.links.repo
 
   return (
-    <footer className="border-t border-[var(--color-border)] py-8">
+    <footer className="border-t border-[var(--color-border)] py-8 print:hidden">
       <Container wide>
         <div className="flex flex-wrap items-center justify-between gap-4 text-caption text-[var(--color-text-dim)]">
           <p>© {year} {site.name} · Built with Next.js</p>

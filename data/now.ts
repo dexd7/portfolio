@@ -1,6 +1,6 @@
 import { NowSchema, type Now } from './schema'
 
-export const now = {
+export const now: Now = {
   updated: '2026-07-30',
   items: [
     { label: 'Studying', value: 'CS + Data Science, senior year — UW–Madison' },

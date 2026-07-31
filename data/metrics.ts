@@ -6,7 +6,12 @@ import { z } from 'zod'
  * viewport, before any narrative. Each links back to the project that earned
  * it via `projectSlug`.
  */
-export const headlineMetrics = [
+// The explicit `: Metric[]` annotation (alongside `satisfies`) matters: without
+// it, TS infers each element's own narrow literal type, so a field present on
+// only one array entry (like `count` here) becomes inaccessible on the others
+// — `satisfies` alone validates the literal but doesn't widen the binding's
+// type for consumers. See also data/projects.ts, experience.ts, etc.
+export const headlineMetrics: Metric[] = [
   {
     id: 'runtime-cut',
     value: '25–40%',
@@ -23,8 +28,8 @@ export const headlineMetrics = [
   },
   {
     id: 'internship-extended',
-    value: '7 months',
-    count: { to: 7, suffix: ' mo' },
+    value: '3 months',
+    count: { to: 3, suffix: ' mo' },
     label: 'internship extended on impact',
     context: 'Data & AI, Innover Digital',
     projectSlug: 'synthetic-data-platform',

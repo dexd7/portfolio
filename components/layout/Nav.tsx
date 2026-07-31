@@ -40,7 +40,7 @@ export function Nav() {
     <>
       <header
         className={cn(
-          'fixed inset-x-0 top-0 z-50 border-b border-[var(--color-border)] backdrop-blur transition-transform duration-[240ms]',
+          'fixed inset-x-0 top-0 z-50 border-b border-[var(--color-border)] backdrop-blur transition-transform duration-[240ms] print:hidden',
         )}
         style={{
           height: '56px',
@@ -84,7 +84,7 @@ export function Nav() {
       <div
         id="mobile-nav-sheet"
         className={cn(
-          'fixed inset-0 z-40 flex flex-col items-start justify-center gap-8 bg-[var(--color-canvas)] px-8 transition-opacity md:hidden',
+          'fixed inset-0 z-40 flex flex-col items-start justify-center gap-8 bg-[var(--color-canvas)] px-8 transition-opacity print:hidden md:hidden',
           sheetOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
         )}
         style={{ transitionDuration: '260ms' }}

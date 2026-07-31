@@ -233,6 +233,18 @@ export const SkillGroupSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
+// Résumé skills — the exhaustive, categorized list for /resume (ATS-style).
+// Distinct from `SkillGroupSchema`, which is the homepage's curated,
+// proof-backed subset. A résumé is expected to be exhaustive; the homepage
+// Signals section deliberately isn't.
+// ---------------------------------------------------------------------------
+
+export const ResumeSkillCategorySchema = z.object({
+  label: z.string().min(1),
+  items: z.array(z.string().min(1)).min(1),
+})
+
+// ---------------------------------------------------------------------------
 // "Currently"
 // ---------------------------------------------------------------------------
 
@@ -266,4 +278,5 @@ export type Experience = z.infer<typeof ExperienceSchema>
 export type Education = z.infer<typeof EducationSchema>
 export type Skill = z.infer<typeof SkillSchema>
 export type SkillGroup = z.infer<typeof SkillGroupSchema>
+export type ResumeSkillCategory = z.infer<typeof ResumeSkillCategorySchema>
 export type Now = z.infer<typeof NowSchema>

@@ -1,0 +1,27 @@
+## Context
+
+Innover's clients needed large, realistic relational datasets to test and demo their systems on — without touching real customer data. Before this platform, that meant hand-rolled scripts per client: brittle, slow to adapt to a new schema, and easy to get wrong in ways that only showed up after the data was already out the door.
+
+## The problem
+
+Relational data is hard to synthesize honestly. A single-table generator can fake plausible rows all day; the moment you have foreign keys, the fake rows have to agree with each other — a synthetic order needs a synthetic customer that actually exists, in a way that still respects the real schema's constraints. On top of that, some fields simply couldn't leave the building in any form, real or synthetic, unless they were provably scrubbed first.
+
+<Decision title="Five SDV models instead of one general-purpose generator" alternatives="a single model tuned to the median schema; a fully custom statistical generator built in-house">
+Different tables wanted different tradeoffs between fidelity and speed — a small lookup table doesn't need the same modeling machinery as a wide fact table with hundreds of columns. Supporting multiple SDV models and picking per-table meant we could match the model to the data instead of forcing every table through one generator's assumptions.
+</Decision>
+
+<Decision title="An LLM generation mode as a fallback, not the default" alternatives="LLM-first generation for everything; rules-based templating for the cases SDV underfit">
+SDV models are fast, deterministic, and cheap to run at scale — the right default for the bulk of tables. But a handful of schemas had structure (free-text fields, unusual categorical relationships) that the statistical models underfit badly. Routing just those cases to an LLM-based generator kept the common path fast while still covering the long tail, rather than paying LLM latency and cost on every table.
+</Decision>
+
+<Decision title="One masking stage after generation, regardless of which model path ran" alternatives="build masking logic separately into the SDV path and the LLM path; mask the source data before any model sees it">
+SDV and the LLM mode produce output through genuinely different code paths, and duplicating masking logic into both would mean two places for it to drift out of sync — and two places for a gap to open up unnoticed. Running every generated table through one masking stage afterward, no matter which model produced it, meant there was exactly one place to get it right and one place to audit.
+</Decision>
+
+<Decision title="Optimizing metadata inference instead of rewriting the generation models" alternatives="swap in faster SDV models; parallelize generation runs">
+Profiling showed the bottleneck wasn't generation itself — it was inferring table metadata (types, keys, constraints) before generation could even start. That's a smaller, more contained piece of code than the modeling layer, and fixing it there cut total pipeline runtime 25–40% without touching the parts of the system that were already working.
+</Decision>
+
+## What I'd do differently
+
+I'd instrument the metadata inference step from day one instead of profiling it after the fact — the runtime win was sitting there the whole time, and it took a deliberate profiling pass to find it. Cheap tracing on every pipeline stage from the start would have surfaced it weeks earlier.

@@ -7,9 +7,9 @@ interface HairlineProps {
   className?: string
 }
 
-/** A rule that draws left → right on scroll into view. */
+/** A rule that draws left → right every time it scrolls into view. */
 export function Hairline({ className }: HairlineProps) {
-  const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.5, once: true })
+  const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.5, once: false })
 
   return (
     <div

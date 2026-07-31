@@ -1,0 +1,27 @@
+## Context
+
+Every terminal session runs through a shell without most people thinking about what it's actually doing between a command being typed and a process running. I wanted to know, so I built WSH in C — parsing, job control, pipes, redirection, and memory management, all from scratch, with both interactive and batch modes.
+
+## The problem
+
+A shell sits directly on top of the OS's process model — `fork`, `exec`, `pipe`, `wait` — with no framework softening any of it. Get the sequencing wrong and you leak zombie processes, deadlock a pipeline, or route a command's output somewhere the user never intended. And every one of those raw C strings the parser hands off needs memory managed by hand, for the lifetime of a command that might live for a fraction of a second or run in the background indefinitely.
+
+<Decision title="An arena allocator over per-token malloc/free" alternatives="malloc every token and string as it's parsed, free it when the command finishes">
+A command line's parsed representation all shares one lifetime — it's built once and torn down together when the command finishes. Allocating each piece from an arena and freeing the whole arena at once turned a scattered set of malloc/free calls (and the bugs that come from missing one) into a single allocation and a single, unmissable release.
+</Decision>
+
+<Decision title="fork + exec for every command, no built-in fast path" alternatives="special-case common builtins to run in-process without forking">
+Skipping the fork for simple builtins would have been a real speed win, but it also would have meant two different execution paths with two different sets of correctness rules — one where signal handling and process groups apply, and one where they quietly don't. Forking unconditionally keeps every command's behavior consistent, which mattered more here than the speed.
+</Decision>
+
+<Decision title="Explicit pipe() wiring per pipeline stage" alternatives="build the entire pipeline's file descriptors up front, then fork all stages">
+Wiring each pipe as the pipeline is walked, rather than pre-computing the whole descriptor table, kept the number of open file descriptors at any moment proportional to the pipeline depth instead of holding every stage's descriptors open simultaneously — a smaller, easier-to-reason-about invariant to hold onto while debugging.
+</Decision>
+
+<Decision title="A large manual test suite over a handful of hand-picked cases" alternatives="spot-check a dozen representative commands and call it done">
+Shell bugs hide in combinations — a pipeline nested inside a background job, a builtin followed by a redirect — not in any single command in isolation. Running 500+ diverse commands through Valgrind, rather than a small curated set, is what actually surfaced the leaks and turned up execution speed within 5% of Bash on standard workloads, not just "seems to work."
+</Decision>
+
+## What I'd do differently
+
+I'd write the job-control tests before the job-control code — background processes and signal handling were where most of the real bugs hid, and they're exactly the part of a shell that's hardest to debug after the fact from a stuck terminal.

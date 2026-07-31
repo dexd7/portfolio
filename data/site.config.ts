@@ -4,7 +4,7 @@ import { SiteConfigSchema, type SiteConfig } from './schema'
  * Everything about the person. Change it here, it changes everywhere —
  * nav, footer, command palette, JSON-LD, OG cards, sitemap, résumé page.
  */
-export const site = {
+export const site: SiteConfig = {
   name: 'Vihaan Sarin',
   initials: 'VS',
   role: 'Full-Stack Software Engineer',

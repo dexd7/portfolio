@@ -1,0 +1,23 @@
+## Context
+
+Most social apps optimize for one thing: attention, measured in public likes and follower counts. Aura Farmer started from a different question — what replaces that feedback loop if you take away the vanity metric it's built on? We built it for Voodoo's Studio incubator, competing against 14 other teams for a spot to keep building.
+
+## The problem
+
+There's no public like count or follower number anywhere in the app. In its place, users earn "aura" — a points system that's personal rather than a leaderboard, and doesn't publish a running score for anyone else to chase. Removing the public metric isn't just deleting a button — it removes the feedback loop most social products lean on to make engagement legible to users and to themselves. The backend had to support a different answer to "why would anyone open this again tomorrow" without quietly reintroducing a leaderboard through the back door.
+
+<Decision title="Supabase over a custom backend" alternatives="a hand-rolled Node/Express API; Firebase">
+A small team racing an incubator clock needed to spend its time on the product decision that actually mattered — what replaces the like button — not on rebuilding auth, row-level security, and realtime subscriptions from scratch. Supabase's Postgres foundation also meant the data model stayed relational and inspectable, instead of flattening into a document store that would have made the eventual analytics harder.
+</Decision>
+
+<Decision title="React Native over two native codebases" alternatives="separate Swift and Kotlin apps">
+With an incubator timeline measured in weeks, not months, shipping one codebase that worked on both platforms was the only realistic way to keep iterating on the actual product question daily instead of splitting attention across two platforms.
+</Decision>
+
+<Decision title="Profiling real Supabase query patterns instead of guessing at indexes" alternatives="add indexes preemptively based on the schema alone">
+Real usage during feature testing showed which queries were actually running redundantly — not which ones looked expensive on paper. Optimizing against measured query patterns cut redundant API calls 40% and brought profile fetch time from 2.0s down to 1.5s, a difference users noticed immediately in testing.
+</Decision>
+
+## What I'd do differently
+
+I'd push harder, earlier, on defining what replaces the metric we removed — we spent real time proving public likes and follows *could* be cut before spending equivalent time on what fills that space. Landing on the replacement first would have left more runway to actually test it.

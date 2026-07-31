@@ -1,0 +1,23 @@
+## Context
+
+I wanted the site itself to be the strongest proof of the "full-stack engineer" claim on the résumé — not a wrapper around the other five projects, but a sixth one, built with the same care and the same willingness to explain a decision instead of just shipping it.
+
+## The problem
+
+A personal site usually rots the moment it ships: a new project means editing five different files, a color change means hunting through components, and "add a case study" means writing a new page from scratch. I wanted adding a project to mean touching exactly two files — one data entry, one prose file — with everything else (routes, sitemap, OG images, cross-links) derived automatically.
+
+<Decision title="Structured data + Zod validation as the only source of truth" alternatives="a headless CMS; MDX frontmatter carrying the structured fields directly">
+A CMS is real infrastructure to run for a single-author site. MDX frontmatter for structured fields was the original plan, but it means duplicating facts — a project's year or stack living in two places that can quietly disagree. Keeping every factual field in typed, Zod-validated TypeScript data files and reserving MDX for prose only means there's exactly one place each fact can live, and a malformed entry fails the build instead of shipping broken.
+</Decision>
+
+<Decision title="Generative covers instead of placeholder images" alternatives="stock photography; blank/gray placeholder boxes; screenshots mocked up after the fact">
+There are no real screenshots yet — the repos this site is proud of are still being published. Faking screenshots would be dishonest; leaving gray boxes would look unfinished. A deterministic, seeded point-field per project reads as a deliberate sleeve system instead of a gap, and swaps for a real image later with zero template changes.
+</Decision>
+
+<Decision title="One WebGL scene, not WebGL throughout" alternatives="a persistent GL layer across every route; no WebGL at all">
+"Immersive" and "loads in under 1.5 seconds" pull against each other. The resolution is to spend the GPU budget in exactly one place — the homepage hero — deferred behind a static poster and loaded after first paint, rather than spreading a smaller GL budget thin across every page.
+</Decision>
+
+## What I'd do differently
+
+I'd write the Zod schemas before writing any component, not just before writing the data — I ended up tightening a few schema constraints (referential integrity between projects and skills, mainly) after the fact, once I'd already hit the gaps by hand.

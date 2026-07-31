@@ -9,6 +9,7 @@ import { projectsSchema, projects } from '../data/projects'
 import { experienceSchema, experience } from '../data/experience'
 import { educationSchema, education } from '../data/education'
 import { skillGroupsSchema, skillGroups, allSkills } from '../data/skills'
+import { resumeSkillsSchema, resumeSkills } from '../data/resumeSkills'
 import { headlineMetricsSchema, headlineMetrics } from '../data/metrics'
 import { nowSchema, now } from '../data/now'
 
@@ -27,6 +28,7 @@ check('projects.ts', projectsSchema.safeParse(projects))
 check('experience.ts', experienceSchema.safeParse(experience))
 check('education.ts', educationSchema.safeParse(education))
 check('skills.ts', skillGroupsSchema.safeParse(skillGroups))
+check('resumeSkills.ts', resumeSkillsSchema.safeParse(resumeSkills))
 check('metrics.ts', headlineMetricsSchema.safeParse(headlineMetrics))
 check('now.ts', nowSchema.safeParse(now))
 

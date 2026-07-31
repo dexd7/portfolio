@@ -36,5 +36,14 @@ yarn-error.log*
 .vscode/*
 !.vscode/extensions.json
 
-# source material (not for the public repo)
+# source material (not for the public repo) — derived copies are committed
+# under public/ instead: public/resume.pdf, public/images/vihaan-portrait.jpg
 /profile*.pdf
+/Vihaan's resume.pdf
+/portfoliopic.JPG
+
+# raw font source kits — only the woff2 files actually used (public/fonts/)
+# are committed; these full kits are just local drop-ins to source from.
+/BebasNeue_Complete/
+/behance-*.otf
+/*-Complete/

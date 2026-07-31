@@ -22,11 +22,13 @@ const STAGGER_CAP = 8
 
 /**
  * The site's signature entrance: blur → sharp, offset → settled, rather than
- * sliding in from off-screen. Fires once, at 25% in view. Reduced-motion
- * users get the CSS backstop in globals.css (120ms plain fade).
+ * sliding in from off-screen. Replays every time the element crosses the 25%
+ * threshold — resolving on the way in, dissolving back on the way out — so
+ * scrolling back and forth stays consistent rather than only animating once.
+ * Reduced-motion users get the CSS backstop in globals.css (120ms plain fade).
  */
 export function Resolve({ children, as: Tag = 'div', className, index = 0 }: ResolveProps) {
-  const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.25, once: true })
+  const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.25, once: false })
   const delay = Math.min(index, STAGGER_CAP) * STAGGER_MS
 
   return (
