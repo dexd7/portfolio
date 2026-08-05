@@ -1,11 +1,1 @@
-## Context
-
 Thales needed a working animal adoption platform — browsing, filtering, and an adoption workflow that had to hold up on everything from a shared office desktop to a phone on a slow connection.
-
-<Decision title="Modular client-side components over one monolithic page render" alternatives="a single large page template re-rendering on every filter change">
-Filtering was the core interaction, so it had to feel instant. Breaking rendering into modular components meant a filter change could update just the listing grid instead of re-rendering the whole page — the change behind the 25% page-load improvement.
-</Decision>
-
-## What I'd do differently
-
-I'd set up a simple performance budget from the start rather than optimizing after the fact — the 25% win came from a deliberate pass at the end, and having a target in mind from day one would have avoided writing some of the code that needed undoing.

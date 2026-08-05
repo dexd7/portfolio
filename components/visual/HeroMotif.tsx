@@ -13,8 +13,8 @@ export function HeroMotif() {
         opacity: 0.55,
         backgroundImage: 'radial-gradient(circle at center, var(--color-static) 1.5px, transparent 1.5px)',
         backgroundSize: '26px 26px',
-        maskImage: 'radial-gradient(ellipse 75% 85% at 72% 45%, black, transparent)',
-        WebkitMaskImage: 'radial-gradient(ellipse 75% 85% at 72% 45%, black, transparent)',
+        maskImage: 'radial-gradient(ellipse 85% 85% at 50% 50%, black, transparent 90%)',
+        WebkitMaskImage: 'radial-gradient(ellipse 85% 85% at 50% 50%, black, transparent 90%)',
       }}
     />
   )

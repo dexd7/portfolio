@@ -41,13 +41,13 @@
     --color-ink-400: #444444;
     --color-ink-200: #222222;
     --color-ink-050: #000000;
-    --color-signal: #086c7a;
+    --color-signal: #93381a;
     --color-static: #666666;
   }
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light dark;
   scroll-behavior: smooth;
 }
 
@@ -229,6 +229,52 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .hairline {
+    transition-duration: var(--duration-micro);
+  }
+}
+
+/* Piano-tile resume-bullet cascade (BulletCascade) — a distinct visual from
+   .resolve on purpose: tiles drop straight down and snap into place (no
+   blur, sharper easing), reading as structured/sequential rather than a
+   repeat of the site's blur-and-settle reveal motif. */
+.tile {
+  opacity: 0;
+  transform: translateY(-32px);
+  transition:
+    opacity var(--duration-reveal) var(--ease-settle),
+    transform var(--duration-reveal) var(--ease-settle);
+  will-change: opacity, transform;
+}
+.tile[data-visible='true'] {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transform: none;
+    transition-duration: var(--duration-micro);
+  }
+}
+
+/* WorkRow's accordion panel — the CSS grid-rows expand technique: no JS
+   height measurement, animates smoothly to the content's real height
+   regardless of length. The inner .accordion-panel-inner's min-height: 0
+   is load-bearing — without it a grid item defaults to its content's
+   intrinsic height and the row never actually collapses to 0fr. */
+.accordion-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: grid-template-rows var(--duration-scene) var(--ease-settle);
+}
+.accordion-panel[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+.accordion-panel-inner {
+  min-height: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .accordion-panel {
     transition-duration: var(--duration-micro);
   }
 }

@@ -24,16 +24,20 @@ export const colors = {
     static: '#3A4F68', // the "unresolved" state — muted dark blue
   },
   light: {
-    ink950: '#EEF3F8', // canvas — cool paper, not white
-    ink900: '#E1E9F1',
-    ink800: '#CFDAE7',
-    ink700: '#B7C6D9',
-    ink500: '#6E7F97',
-    ink400: '#48566B',
-    ink200: '#293445',
-    ink050: '#0B111C',
-    signal: '#086C7A', // darkened teal for text — 5.5:1 (bright #22D3EE is 1.6:1, fails)
-    static: '#6E7F97',
+    // Warm off-white/cream, now the site's default — replaces an earlier
+    // cool-blue "light" palette that was never actually warm. Each pair
+    // verified against the #F6F1E8 canvas via the WCAG relative-luminance
+    // formula before committing to hex, same rigor as the dark palette.
+    ink950: '#F6F1E8', // canvas — warm ivory, not stark white
+    ink900: '#EDE4D3', // elevated surface
+    ink800: '#E1D4BC', // subtle fill
+    ink700: '#CBB896', // hairline / border
+    ink500: '#A38F6E', // decorative marks only — never text (~2.6:1, fails AA)
+    ink400: '#6B5B42', // muted text — 5.83:1
+    ink200: '#3E3323', // secondary text — 10.96:1
+    ink050: '#1C160D', // primary text — 15.95:1 (warm near-black, not pure black)
+    signal: '#93381A', // terracotta accent — 6.62:1
+    static: '#B7A88C', // the "unresolved" state — muted warm tan
   },
 } as const
 

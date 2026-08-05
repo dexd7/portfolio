@@ -123,29 +123,6 @@ export const MetricSchema = z.object({
   projectSlug: slugString.optional(),
 })
 
-export const DiagramNodeSchema = z.object({
-  id: slugString,
-  label: z.string().min(1),
-  kind: z.enum(['input', 'process', 'store', 'output', 'external']),
-  /** Percentage coordinates within the diagram viewBox, 0–100. */
-  x: z.number().min(0).max(100),
-  y: z.number().min(0).max(100),
-  note: z.string().optional(),
-})
-
-export const DiagramEdgeSchema = z.object({
-  from: slugString,
-  to: slugString,
-  label: z.string().optional(),
-  kind: z.enum(['data', 'control']),
-})
-
-export const DiagramSchema = z.object({
-  caption: z.string().min(1),
-  nodes: z.array(DiagramNodeSchema).min(2),
-  edges: z.array(DiagramEdgeSchema).min(1),
-})
-
 export const ProjectSchema = z.object({
   slug: slugString,
   /** Display index — `01`, `02`. Drives the oversized numeral on covers. */
@@ -178,11 +155,17 @@ export const ProjectSchema = z.object({
     repo: httpUrl.optional(),
     live: httpUrl.optional(),
     external: httpUrl.optional(),
-    internal: z.string().optional(),
   }),
   cover: CoverSchema,
   metrics: z.array(MetricSchema),
-  diagram: DiagramSchema.optional(),
+  /**
+   * Resume bullets for this project, rendered as a scroll-triggered cascade
+   * (see BulletCascade) in place of the old fabricated architecture diagram.
+   * Omit when the project has its own experience.ts entry — the case-study
+   * page falls back to that entry's `highlights` via `projectSlug` instead
+   * of duplicating the same bullets in two places.
+   */
+  highlights: z.array(z.string().min(1)).optional(),
   /** Skill ids this project demonstrates. Powers the two-way cross-highlight. */
   proves: z.array(slugString),
 })
@@ -270,9 +253,6 @@ export type NavItem = z.infer<typeof NavItemSchema>
 export type SiteConfig = z.infer<typeof SiteConfigSchema>
 export type Cover = z.infer<typeof CoverSchema>
 export type Metric = z.infer<typeof MetricSchema>
-export type DiagramNode = z.infer<typeof DiagramNodeSchema>
-export type DiagramEdge = z.infer<typeof DiagramEdgeSchema>
-export type Diagram = z.infer<typeof DiagramSchema>
 export type Project = z.infer<typeof ProjectSchema>
 export type Experience = z.infer<typeof ExperienceSchema>
 export type Education = z.infer<typeof EducationSchema>

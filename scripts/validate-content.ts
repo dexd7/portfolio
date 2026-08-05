@@ -46,23 +46,6 @@ for (const project of projects) {
       })
     }
   }
-  if (project.diagram) {
-    const nodeIds = new Set(project.diagram.nodes.map((n) => n.id))
-    for (const edge of project.diagram.edges) {
-      if (!nodeIds.has(edge.from)) {
-        problems.push({
-          file: 'projects.ts',
-          message: `project "${project.slug}" diagram edge references unknown node "${edge.from}"`,
-        })
-      }
-      if (!nodeIds.has(edge.to)) {
-        problems.push({
-          file: 'projects.ts',
-          message: `project "${project.slug}" diagram edge references unknown node "${edge.to}"`,
-        })
-      }
-    }
-  }
 }
 
 for (const skill of allSkills()) {

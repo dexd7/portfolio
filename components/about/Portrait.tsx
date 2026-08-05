@@ -22,7 +22,7 @@ export function Portrait({ src, alt, className }: PortraitProps) {
         fill
         className="object-cover"
         style={{ filter: 'grayscale(0.85) contrast(1.08) brightness(0.92)' }}
-        sizes="(min-width: 1024px) 420px, 90vw"
+        sizes="(min-width: 1024px) 540px, 90vw"
       />
       <div
         aria-hidden="true"

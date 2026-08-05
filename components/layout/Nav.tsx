@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { site } from '@/data/site.config'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from './ThemeToggle'
 
 /**
  * 56px top bar. Hides on scroll-down, reveals on scroll-up. No desktop
@@ -49,9 +50,12 @@ export function Nav() {
         }}
       >
         <div className="mx-auto flex h-full max-w-[var(--container-max)] items-center justify-between px-6 md:px-8">
-          <Link href="/" className="text-label" aria-label={`${site.name} — home`}>
-            {site.initials}
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-label" aria-label={`${site.name} — home`}>
+              {site.initials}
+            </Link>
+            <ThemeToggle />
+          </div>
 
           <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
             {site.nav.map((item) => (

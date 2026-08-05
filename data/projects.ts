@@ -20,12 +20,12 @@ export const projects: Project[] = [
     org: 'Innover Digital',
     confidential: true,
     status: 'shipped',
-    stack: ['React', 'FastAPI', 'Python', 'SDV', 'PostgreSQL', 'OpenAI SDK', 'spaCy'],
+    stack: ['React', 'FastAPI', 'Python', 'SDV', 'OpenAI SDK', 'spaCy'],
     tags: ['data', 'backend', 'ai'],
     featured: true,
     order: 1,
     layout: 'product',
-    links: { internal: '/work/synthetic-data-platform' },
+    links: {},
     cover: { type: 'generative', seed: 1, hue: 0 },
     metrics: [
       {
@@ -49,32 +49,10 @@ export const projects: Project[] = [
         context: 'Extended on the strength of the metadata inference work.',
       },
     ],
-    diagram: {
-      caption: 'Request flow: raw relational data in, masked synthetic data out — PII masking runs after generation, whichever model path produced it.',
-      nodes: [
-        { id: 'source-db', label: 'Source DB', kind: 'external', x: 4, y: 50 },
-        { id: 'metadata', label: 'Metadata inference', kind: 'process', x: 24, y: 50 },
-        { id: 'sdv', label: 'SDV models (×5)', kind: 'process', x: 46, y: 22 },
-        { id: 'llm', label: 'LLM generation mode', kind: 'process', x: 46, y: 78 },
-        { id: 'pii-mask', label: 'PII masking', kind: 'process', x: 68, y: 50 },
-        { id: 'constraints', label: 'Constraint handling', kind: 'process', x: 86, y: 50 },
-        { id: 'output', label: 'Synthetic dataset', kind: 'output', x: 96, y: 50 },
-      ],
-      edges: [
-        { from: 'source-db', to: 'metadata', kind: 'data' },
-        { from: 'metadata', to: 'sdv', kind: 'data' },
-        { from: 'metadata', to: 'llm', kind: 'data' },
-        { from: 'sdv', to: 'pii-mask', kind: 'data' },
-        { from: 'llm', to: 'pii-mask', kind: 'data' },
-        { from: 'pii-mask', to: 'constraints', kind: 'data' },
-        { from: 'constraints', to: 'output', kind: 'data' },
-      ],
-    },
     proves: [
       'python',
       'fastapi',
       'react',
-      'postgresql',
       'system-design',
       'data-modeling',
     ],
@@ -88,15 +66,15 @@ export const projects: Project[] = [
     summary:
       'A React Native + Supabase social app exploring engagement without public likes or follower counts — an "aura points" system instead. Finished top 3 of 15 teams in Voodoo’s Studio incubator.',
     year: '2025',
-    role: 'Founding Engineer',
+    role: 'Team project',
     confidential: false,
     status: 'archived',
-    stack: ['React Native', 'Supabase', 'TypeScript', 'PostgreSQL'],
+    stack: ['React Native', 'Supabase'],
     tags: ['mobile', 'product', 'frontend'],
     featured: true,
     order: 2,
     layout: 'product',
-    links: { internal: '/work/aura-farmer' },
+    links: {},
     cover: { type: 'generative', seed: 2, hue: 30 },
     metrics: [
       {
@@ -119,7 +97,13 @@ export const projects: Project[] = [
         context: 'Same optimization pass, measured in testing.',
       },
     ],
-    proves: ['react-native', 'typescript', 'supabase', 'postgresql'],
+    highlights: [
+      'Integrated RESTful Supabase APIs for real-time post, comment, and media handling in React Native profile and vault interfaces.',
+      'Optimized Supabase queries, cutting redundant API calls by 40% and reducing profile fetch time from 2.0s to 1.5s.',
+      'Ran an agile, SCRUM-based development cycle to plan sprints and coordinate across roles.',
+      'Recognized as 1 of 3 finalists from 15 teams in Voodoo’s Studio incubator.',
+    ],
+    proves: ['react-native', 'supabase'],
   },
 
   {
@@ -133,7 +117,7 @@ export const projects: Project[] = [
     role: 'Independent project',
     confidential: false,
     status: 'archived',
-    stack: ['C', 'POSIX threads', 'Make'],
+    stack: ['C', 'POSIX threads'],
     tags: ['systems', 'concurrency'],
     featured: true,
     order: 3,
@@ -141,7 +125,6 @@ export const projects: Project[] = [
     links: {
       // TODO(vihaan): replace once the repo is published.
       repo: 'https://github.com/vihaansarin/minispark',
-      internal: '/work/parallel-data-framework',
     },
     cover: { type: 'generative', seed: 3, hue: -30 },
     metrics: [
@@ -166,28 +149,11 @@ export const projects: Project[] = [
         context: 'Custom allocators, thread-safe queues and mutexes.',
       },
     ],
-    diagram: {
-      caption: 'RDD partitions scheduled across a worker pool via a DAG scheduler; results merged with lineage tracking.',
-      nodes: [
-        { id: 'input', label: 'RDD partitions', kind: 'input', x: 6, y: 50 },
-        { id: 'queue', label: 'DAG scheduler', kind: 'store', x: 28, y: 50 },
-        { id: 'worker-1', label: 'Worker thread', kind: 'process', x: 52, y: 15 },
-        { id: 'worker-2', label: 'Worker thread', kind: 'process', x: 52, y: 50 },
-        { id: 'worker-3', label: 'Worker thread', kind: 'process', x: 52, y: 85 },
-        { id: 'reduce', label: 'Reduce (lineage-tracked)', kind: 'process', x: 76, y: 50 },
-        { id: 'output', label: 'Result RDD', kind: 'output', x: 96, y: 50 },
-      ],
-      edges: [
-        { from: 'input', to: 'queue', kind: 'data' },
-        { from: 'queue', to: 'worker-1', kind: 'control' },
-        { from: 'queue', to: 'worker-2', kind: 'control' },
-        { from: 'queue', to: 'worker-3', kind: 'control' },
-        { from: 'worker-1', to: 'reduce', kind: 'data' },
-        { from: 'worker-2', to: 'reduce', kind: 'data' },
-        { from: 'worker-3', to: 'reduce', kind: 'data' },
-        { from: 'reduce', to: 'output', kind: 'data' },
-      ],
-    },
+    highlights: [
+      'Built RDDs supporting map, filter, join, and partitionBy, with lineage recomputation recovering lost partitions at under 5% overhead.',
+      'Architected a DAG scheduler using POSIX threads and a worker pool, accelerating throughput 4× on datasets up to 10GB in multicore environments.',
+      'Implemented thread-safe queues, mutexes, and custom memory allocators — eliminating race conditions and cutting memory fragmentation 20%.',
+    ],
     proves: ['c', 'posix-threads', 'concurrent-programming', 'systems-programming'],
   },
 
@@ -197,12 +163,12 @@ export const projects: Project[] = [
     title: 'WSH',
     thesis: 'Raw text in, running processes out — down to the memory allocator.',
     summary:
-      'A POSIX-style shell written in C, interactive and batch modes: parsing, job control, pipes and redirection, and a custom arena allocator instead of leaning on libc malloc for everything.',
+      'A POSIX-style shell written in C, interactive and batch modes — fork/exec, 128-argument parsing, environment variables, built-ins, piping, and background jobs, covering 80%+ of daily Bash use.',
     year: '2025',
     role: 'Independent project',
     confidential: false,
     status: 'archived',
-    stack: ['C', 'POSIX', 'Systems programming'],
+    stack: ['C', 'POSIX'],
     tags: ['systems'],
     featured: true,
     order: 4,
@@ -210,7 +176,6 @@ export const projects: Project[] = [
     links: {
       // TODO(vihaan): replace once the repo is published.
       repo: 'https://github.com/vihaansarin/wsh',
-      internal: '/work/unix-shell',
     },
     cover: { type: 'generative', seed: 4, hue: 60 },
     metrics: [
@@ -234,28 +199,12 @@ export const projects: Project[] = [
         context: 'On standard workloads.',
       },
     ],
-    diagram: {
-      caption: 'A command line, parsed, forked, and executed with pipes wired between stages.',
-      nodes: [
-        { id: 'input', label: 'Command line', kind: 'input', x: 6, y: 50 },
-        { id: 'parser', label: 'Parser', kind: 'process', x: 26, y: 50 },
-        { id: 'fork', label: 'fork()', kind: 'process', x: 46, y: 25 },
-        { id: 'pipe', label: 'pipe()', kind: 'process', x: 46, y: 75 },
-        { id: 'exec', label: 'exec()', kind: 'process', x: 66, y: 25 },
-        { id: 'arena', label: 'Arena allocator', kind: 'store', x: 66, y: 75 },
-        { id: 'output', label: 'Running process', kind: 'output', x: 90, y: 50 },
-      ],
-      edges: [
-        { from: 'input', to: 'parser', kind: 'data' },
-        { from: 'parser', to: 'fork', kind: 'control' },
-        { from: 'parser', to: 'pipe', kind: 'control' },
-        { from: 'fork', to: 'exec', kind: 'control' },
-        { from: 'pipe', to: 'arena', kind: 'data' },
-        { from: 'exec', to: 'output', kind: 'control' },
-        { from: 'arena', to: 'output', kind: 'data' },
-      ],
-    },
-    proves: ['c', 'systems-programming', 'posix-threads', 'concurrent-programming'],
+    highlights: [
+      'Authored a Unix-like shell from scratch with interactive and batch modes — fork/exec, 128-argument parsing, environment variables, built-in commands, piping, and background jobs.',
+      'Covered over 80% of daily Bash functionality.',
+      'Verified reliability running 500+ diverse commands, including nested pipelines and background jobs — zero memory leaks under Valgrind, execution speed within 5% of Bash.',
+    ],
+    proves: ['c', 'systems-programming'],
   },
 
   {
@@ -275,7 +224,7 @@ export const projects: Project[] = [
     featured: false,
     order: 5,
     layout: 'standard',
-    links: { internal: '/work/pet-adoption-platform' },
+    links: {},
     cover: { type: 'generative', seed: 5, hue: -60 },
     metrics: [
       {
@@ -307,29 +256,9 @@ export const projects: Project[] = [
     links: {
       // TODO(vihaan): replace once the repo is public.
       repo: 'https://github.com/dexd7/portfolio.git',
-      internal: '/colophon',
     },
     cover: { type: 'generative', seed: 6, hue: 90 },
     metrics: [],
-    diagram: {
-      caption: 'Data files are the only place content lives; everything downstream is derived at build time.',
-      nodes: [
-        { id: 'data', label: 'data/*.ts', kind: 'input', x: 4, y: 50 },
-        { id: 'zod', label: 'Zod validation', kind: 'process', x: 26, y: 50 },
-        { id: 'tokens', label: 'Token generation', kind: 'process', x: 48, y: 22 },
-        { id: 'mdx', label: 'MDX case studies', kind: 'process', x: 48, y: 78 },
-        { id: 'build', label: 'Next.js static build', kind: 'process', x: 72, y: 50 },
-        { id: 'output', label: 'Deployed pages', kind: 'output', x: 96, y: 50 },
-      ],
-      edges: [
-        { from: 'data', to: 'zod', kind: 'control' },
-        { from: 'zod', to: 'tokens', kind: 'data' },
-        { from: 'zod', to: 'mdx', kind: 'data' },
-        { from: 'tokens', to: 'build', kind: 'data' },
-        { from: 'mdx', to: 'build', kind: 'data' },
-        { from: 'build', to: 'output', kind: 'data' },
-      ],
-    },
     proves: ['typescript', 'react', 'system-design'],
   },
 ] satisfies Project[]

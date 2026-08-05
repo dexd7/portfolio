@@ -6,7 +6,6 @@ import { getProjectMdxSource } from '@/lib/mdx'
 import { mdxComponents } from '@/components/mdx'
 import { ProjectHeader } from '@/components/work/ProjectHeader'
 import { ProjectCover } from '@/components/work/ProjectCover'
-import { SystemDiagram } from '@/components/work/SystemDiagram'
 import { Section } from '@/components/layout/Section'
 
 export const metadata: Metadata = {
@@ -30,12 +29,6 @@ export default async function ColophonPage() {
       {source && (
         <Section wide>
           <MDXRemote source={source} components={mdxComponents} />
-        </Section>
-      )}
-
-      {project.diagram && (
-        <Section wide label="Architecture">
-          <SystemDiagram diagram={project.diagram} />
         </Section>
       )}
 

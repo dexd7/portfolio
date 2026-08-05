@@ -1,7 +1,7 @@
 'use client'
 
 import { Canvas } from '@react-three/fiber'
-import { useState, type MutableRefObject } from 'react'
+import { useState, type MutableRefObject, type RefObject } from 'react'
 import { ResolveFieldPoints } from './ResolveFieldPoints'
 
 interface ResolveFieldCanvasProps {
@@ -11,10 +11,10 @@ interface ResolveFieldCanvasProps {
   pointerEnabled: boolean
   /** Ref, not a value prop — scroll updates it directly so this never re-renders on scroll. */
   resolveTargetRef: MutableRefObject<number>
-  /** Pauses the render loop entirely when the hero is offscreen. */
+  /** Pauses the render loop entirely when scrolled out of view. */
   active: boolean
-  /** The signature-node hover label, mutated directly each frame — no React state. */
-  labelElRef: MutableRefObject<HTMLDivElement | null>
+  /** The scoped wrapper's own DOM node — pointer NDC is computed against ITS bounding rect, not the window, now that this canvas doesn't cover the full viewport. */
+  containerRef: RefObject<HTMLDivElement | null>
 }
 
 /**
@@ -37,7 +37,7 @@ export default function ResolveFieldCanvas({
   pointerEnabled,
   resolveTargetRef,
   active,
-  labelElRef,
+  containerRef,
 }: ResolveFieldCanvasProps) {
   // Bumping this remounts <Canvas> from scratch — the reliable way to
   // recover from a lost WebGL context, since all GPU-side buffers need
@@ -55,7 +55,10 @@ export default function ResolveFieldCanvas({
       gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
       style={{ position: 'absolute', inset: 0 }}
       onCreated={({ gl }) => {
-        gl.setClearColor(0x101215, 1)
+        // Transparent — this now sits as a foreground layer over the whole
+        // page, not an opaque hero backdrop, so whatever's behind it must
+        // show through.
+        gl.setClearColor(0x000000, 0)
 
         const canvas = gl.domElement
         const onLost = (event: Event) => {
@@ -72,7 +75,7 @@ export default function ResolveFieldCanvas({
         colorSignal={colorSignal}
         targetResolveRef={resolveTargetRef}
         pointerEnabled={pointerEnabled}
-        labelElRef={labelElRef}
+        containerRef={containerRef}
       />
     </Canvas>
   )

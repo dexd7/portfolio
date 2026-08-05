@@ -31,7 +31,7 @@ export function Timeline() {
             )}
             {exp.projectSlug && (
               <Link
-                href={`/work/${exp.projectSlug}`}
+                href={`/work#${exp.projectSlug}`}
                 className="text-label mt-3 inline-block text-[var(--color-signal)] hover:underline"
               >
                 Related project ↗

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { colors } from '@/data/theme.config'
+import { useThemeColors } from '@/hooks/useThemeColors'
 import { HeroMotif } from './HeroMotif'
 
 const ResolveFieldCanvas = dynamic(() => import('./ResolveFieldCanvas'), { ssr: false })
@@ -13,32 +13,28 @@ interface NetworkInformationLike {
 }
 
 /**
- * Public entry point for the hero's WebGL scene (a resolving soccer-ball
- * node network — see ResolveFieldPoints). Renders the static HeroMotif
- * poster immediately and always; swaps in the real GL scene once idle time
- * is available, unless reduced-motion or Save-Data is on, in which case it
- * stays on the poster permanently. The node count is fixed (a soccer ball
- * has exactly 60 vertices) so there's no device-tier particle-count
- * scaling to do — only DPR is capped for lower-end devices.
+ * The field of nodes, scoped to the portrait — NOT a full-page layer.
+ * `position: absolute` inside the portrait's own `relative` wrapper
+ * (mounted from within PortraitStage.tsx, inside its transformed imgWrap),
+ * so it scrolls naturally with the page and flies up/out together with the
+ * photo instead of staying pinned across unrelated sections. Sits IN FRONT
+ * of the portrait image (z-10), `pointer-events-none` throughout so it
+ * never blocks clicks on real content. Renders the static HeroMotif poster
+ * immediately and always; swaps in the real GL scene once idle time is
+ * available, unless reduced-motion or Save-Data is on.
  */
 export function ResolveField() {
   const containerRef = useRef<HTMLDivElement>(null)
   const reducedMotion = useReducedMotion()
+  const { colorStatic, colorSignal } = useThemeColors()
 
   const [ready, setReady] = useState(false)
   const [visible, setVisible] = useState(true)
   const [skip, setSkip] = useState(false)
   const [dpr, setDpr] = useState(1)
   const [pointerEnabled, setPointerEnabled] = useState(false)
-  // NOT React state — scroll fires far too often for setState. This ref is
-  // handed straight down to the R3F render loop, which reads it once per
-  // frame; writing to it never triggers a re-render of this component tree
-  // (that re-render storm was the actual cause of the choppiness).
-  const scrollTargetRef = useRef(1)
-  // A signature node on the ball projects its screen position here each
-  // frame (direct DOM mutation inside the R3F loop, not React state — same
-  // reasoning as scrollTargetRef) to position the small hover-reveal label.
-  const labelElRef = useRef<HTMLDivElement | null>(null)
+  // NOT React state — the R3F render loop reads this once per frame.
+  const scrollTargetRef = useRef(0)
 
   // Decide whether to load GL at all, once reduced-motion is known.
   useEffect(() => {
@@ -57,7 +53,9 @@ export function ResolveField() {
     return () => cancelIdle(id as never)
   }, [reducedMotion])
 
-  // Pause the render loop entirely when the hero scrolls offscreen.
+  // Pause the render loop when scrolled out of view — meaningful again now
+  // that this is `absolute`, not `fixed`: it actually moves in and out of
+  // the viewport as the page scrolls.
   useEffect(() => {
     if (skip) return
     const node = containerRef.current
@@ -67,26 +65,40 @@ export function ResolveField() {
     return () => observer.disconnect()
   }, [skip])
 
-  // Dissolve back toward noise as the hero scrolls out of view. Writes
-  // straight to the ref — no setState, so scrolling never re-renders React.
+  // Resolve from noise into the field's real shape as the portrait scrolls
+  // into view, dissolve back as it leaves — ref only, no setState, so
+  // scrolling never re-renders this tree.
   useEffect(() => {
     if (skip) return
     const onScroll = () => {
       const node = containerRef.current
       if (!node) return
       const rect = node.getBoundingClientRect()
-      const ratio = Math.max(0, Math.min(1, rect.bottom / rect.height))
-      scrollTargetRef.current = 0.15 + 0.85 * ratio
+      const vh = window.innerHeight
+      const visibleTop = Math.min(rect.bottom, vh)
+      const visibleBottom = Math.max(rect.top, 0)
+      const visibleHeight = Math.max(0, visibleTop - visibleBottom)
+      scrollTargetRef.current = Math.max(0, Math.min(1, visibleHeight / Math.min(rect.height, vh)))
     }
     window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
     onScroll()
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
   }, [skip])
 
   return (
     <div
       ref={containerRef}
-      className="pointer-events-none absolute inset-0"
+      className="pointer-events-none absolute z-10"
+      // -26%, up from -20% — a bigger bleed around the portrait so the
+      // field's own silhouette clearly extends past the photo's edges on
+      // all sides (verified: same worst-case canvas-edge margin as before,
+      // even with a simultaneous max kick + max repulsion on one node —
+      // see ResolveFieldPoints.tsx's KICK_PUSH_FRACTION/REPEL_RADIUS_FRACTION).
+      style={{ inset: '-26%' }}
       aria-hidden="true"
       role="presentation"
     >
@@ -94,22 +106,13 @@ export function ResolveField() {
       {!skip && ready && (
         <ResolveFieldCanvas
           dpr={dpr}
-          colorStatic={colors.dark.static}
-          colorSignal={colors.dark.signal}
+          colorStatic={colorStatic}
+          colorSignal={colorSignal}
           pointerEnabled={pointerEnabled}
           resolveTargetRef={scrollTargetRef}
           active={visible}
-          labelElRef={labelElRef}
+          containerRef={containerRef}
         />
-      )}
-      {!skip && ready && pointerEnabled && (
-        <div
-          ref={labelElRef}
-          className="text-label absolute left-0 top-0 whitespace-nowrap text-[var(--color-signal)] opacity-0 transition-opacity duration-150"
-          title="World Cup year. Also when I graduate."
-        >
-          2026
-        </div>
       )}
     </div>
   )

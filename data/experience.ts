@@ -19,19 +19,6 @@ export const experience: Experience[] = [
     projectSlug: 'synthetic-data-platform',
   },
   {
-    id: 'uw-madison-peer-mentor',
-    org: 'University of Wisconsin–Madison',
-    role: 'Classroom Peer Mentor',
-    location: 'Madison, WI',
-    start: '2024-09',
-    end: '2024-12',
-    highlights: [
-      'Gave feedback on assignments and practice problems, helping students improve problem-solving strategies and mathematical reasoning.',
-      'Coordinated group discussions and study groups, keeping students engaged in collaborative learning.',
-    ],
-    stack: [],
-  },
-  {
     id: 'thales',
     org: 'Thales',
     role: 'Web Development Intern',

@@ -1,63 +1,72 @@
 'use client'
 
-import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
+import { useEffect, useMemo, useRef, type MutableRefObject, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { buildFootballNodes } from './resolveFieldGeometry'
+import { buildFieldNodes } from './resolveFieldGeometry'
 
 interface ResolveFieldPointsProps {
   colorStatic: string
   colorSignal: string
   targetResolveRef: MutableRefObject<number>
   pointerEnabled: boolean
-  labelElRef: MutableRefObject<HTMLDivElement | null>
+  containerRef: RefObject<HTMLDivElement | null>
 }
 
-const POINTER_RADIUS_FRACTION = 0.28
-const POINTER_PUSH_FRACTION = 0.025
-const ROTATION_SPEED = 0.16 // rad/s — a full turn roughly every ~39s
-const TILT = 0.38 // fixed X-axis tilt, radians — a 3/4 view rather than flat-on
+// The minimum distance a node maintains from the cursor — not a bounded
+// nudge, a maintained gap: each frame the target displacement is whatever's
+// needed to hold the node exactly this far from the cursor's CURRENT
+// position, so the cursor can never "catch up" to a node regardless of how
+// fast it moves. The spring below only smooths how quickly the displayed
+// position converges to that target, not whether it's reached.
+const REPEL_RADIUS_FRACTION = 0.32
+const REPULSION_SPRING_RATE = 4.5
+// Connections are a live proximity graph, not a fixed topology — but
+// connecting every pair within range produces a dense, cluttered tangle
+// once several nodes drift close together (a busy area can have a dozen
+// nodes all mutually in range). Capping each node to its MAX_NEIGHBORS
+// nearest within CONNECT_RADIUS_FRACTION keeps the graph sparse and legible
+// regardless of local density — a node with five neighbors nearby still
+// only draws its closest couple, not all five.
+const CONNECT_RADIUS_FRACTION = 0.32
+const MAX_NEIGHBORS = 2
 
-// Click "kick": a brief rotation boost + outward impulse that decays back.
+// Click "kick": an outward impulse that decays back. No rotation boost —
+// there's no rigid body to spin, see the wander note below.
 const KICK_DECAY = 2.2
-const KICK_ROTATION_BOOST = 1.8
 const KICK_PUSH_FRACTION = 0.14
 
 // Arrival flash: a brief spark toward white when a node crosses halfway
 // from noise to resolved, so the assembly looks like it's clicking together.
 const FLASH_DECAY = 3.5
 
-// Idle breathing — a slight scale pulse so the ball is never fully static.
+// Idle breathing — a slight scale pulse so the field is never fully static.
 const BREATH_SPEED = 0.5
 const BREATH_AMOUNT = 0.02
 
-// One fixed node doubles as a signature detail: hover directly over it and
-// a small "2026" label appears — the World Cup and graduation sharing a
-// year. Deliberately not a reproduction of any official ball's branding.
-const SIGNATURE_INDEX = 0
-const SIGNATURE_REVEAL_FRACTION = 0.09
-
 /**
- * The "Resolve Field" as a soccer ball: 60 nodes — the true vertices of a
- * truncated icosahedron — condense from a scattered noise cloud into the
- * ball's actual panel-edge structure (gray → amber, same progression as
- * everywhere else on the site), slowly rotating so the 3D shape reads
- * clearly, with the cursor pushing nearby nodes and brightening their
- * connections, a click giving it a satisfying kick, and one signature node
- * revealing a small personal detail on close hover. Built on three.js's
- * standard PointsMaterial/LineBasicMaterial rather than a custom shader —
- * with only 60 nodes, the CPU cost of an all-pairs distance check per frame
- * is trivial, and standard materials are far easier to reason about
- * precisely than hand-written GLSL.
+ * A field of 60 nodes condensing from a scattered noise cloud toward random
+ * anchors (static → signal, same progression as everywhere else on the
+ * site) — no rigid rotation; each node wanders continuously around its own
+ * anchor at its own frequency/phase, so the motion is per-node and
+ * asynchronous rather than one shape spinning as a whole. The cursor
+ * chases nearby nodes away (never letting it actually reach one — see
+ * REPEL_RADIUS_FRACTION), a live proximity graph connects whichever nodes
+ * happen to be close together, drawn in one consistent color, and a click
+ * gives it a satisfying kick. Built on three.js's standard
+ * PointsMaterial/LineBasicMaterial rather than a custom shader — with only
+ * 60 nodes, the CPU cost of an all-pairs distance check per frame is
+ * trivial, and standard materials are far easier to reason about precisely
+ * than hand-written GLSL.
  */
 export function ResolveFieldPoints({
   colorStatic,
   colorSignal,
   targetResolveRef,
   pointerEnabled,
-  labelElRef,
+  containerRef,
 }: ResolveFieldPointsProps) {
-  const { nodes, edgeLength } = useMemo(() => buildFootballNodes(), [])
+  const { nodes } = useMemo(() => buildFieldNodes(), [])
   const n = nodes.length
 
   const colorStaticVec = useMemo(() => new THREE.Color(colorStatic), [colorStatic])
@@ -70,10 +79,18 @@ export function ResolveFieldPoints({
   const nodeResolvePrev = useMemo(() => new Float32Array(n), [n])
   const nodeGlow = useMemo(() => new Float32Array(n), [n])
   const nodeFlash = useMemo(() => new Float32Array(n), [n])
-  const maxPairs = (n * (n - 1)) / 2
-  const linePositions = useMemo(() => new Float32Array(maxPairs * 2 * 3), [maxPairs])
-  const lineColors = useMemo(() => new Float32Array(maxPairs * 2 * 3), [maxPairs])
-  const signatureWorldPos = useMemo(() => new THREE.Vector3(), [])
+  const nodeDisplaceX = useMemo(() => new Float32Array(n), [n])
+  const nodeDisplaceY = useMemo(() => new Float32Array(n), [n])
+  // Each node keeps at most its MAX_NEIGHBORS nearest, so there are at most
+  // n*MAX_NEIGHBORS edges — far fewer than the all-pairs worst case, and the
+  // real bound this buffer needs to be sized for.
+  const maxEdges = n * MAX_NEIGHBORS
+  const linePositions = useMemo(() => new Float32Array(maxEdges * 2 * 3), [maxEdges])
+  const lineColors = useMemo(() => new Float32Array(maxEdges * 2 * 3), [maxEdges])
+  // Scratch for the nearest-neighbor search — reset and rebuilt each frame,
+  // reused across frames (no per-frame array allocation).
+  const nearestIdx = useMemo(() => new Int32Array(n * MAX_NEIGHBORS), [n])
+  const nearestDist2 = useMemo(() => new Float32Array(n * MAX_NEIGHBORS), [n])
 
   const pointsGeometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
@@ -117,16 +134,21 @@ export function ResolveFieldPoints({
       new THREE.LineBasicMaterial({
         vertexColors: true,
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.45,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
     [],
   )
 
-  // Pointer tracked on `window`, not R3F's canvas-scoped pointer — the hero
-  // copy sits above the canvas (z-10), so canvas-only events would stop
-  // firing the moment the cursor crossed the text.
+  // Pointer tracked on `window`, not R3F's canvas-scoped pointer — the
+  // canvas has pointer-events-none (so it never blocks clicks on real
+  // content), and an element with pointer-events-none never receives its
+  // own pointer events. NDC is computed against the scoped container's own
+  // bounding rect, NOT window dimensions — this canvas covers a small box
+  // around the portrait, not the full viewport, so window-relative NDC
+  // would put the ±1 range far outside where the cursor actually needs to
+  // be for the field to react.
   const pointerNdc = useRef(new THREE.Vector2(0, 0))
   const pointerWorld = useRef(new THREE.Vector2(0, 0))
   const pointerActive = useRef(false)
@@ -135,9 +157,11 @@ export function ResolveFieldPoints({
   useEffect(() => {
     if (!pointerEnabled) return
     const onMove = (event: PointerEvent) => {
+      const rect = containerRef.current?.getBoundingClientRect()
+      if (!rect || rect.width === 0 || rect.height === 0) return
       pointerNdc.current.set(
-        (event.clientX / window.innerWidth) * 2 - 1,
-        -((event.clientY / window.innerHeight) * 2 - 1),
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -(((event.clientY - rect.top) / rect.height) * 2 - 1),
       )
       pointerActive.current = true
     }
@@ -158,36 +182,11 @@ export function ResolveFieldPoints({
   }, [pointerEnabled])
 
   const globalResolveRef = useRef(0)
-  const rotationY = useRef(0)
   const elapsed = useRef(0)
-  const cosTilt = Math.cos(TILT)
-  const sinTilt = Math.sin(TILT)
-
-  // [DEBUG] Temporary — real frame-time data instead of guessing again.
-  // Logs average/worst frame time (ms) and effective FPS once per second.
-  const fpsFrames = useRef(0)
-  const fpsWorst = useRef(0)
-  const fpsAccum = useRef(0)
-  const fpsWindowStart = useRef(0)
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05)
     elapsed.current += dt
-
-    const frameMs = delta * 1000
-    fpsFrames.current += 1
-    fpsAccum.current += frameMs
-    fpsWorst.current = Math.max(fpsWorst.current, frameMs)
-    if (elapsed.current - fpsWindowStart.current >= 1) {
-      const avgMs = fpsAccum.current / fpsFrames.current
-      console.log(
-        `[ResolveFieldPoints] fps: ${(1000 / avgMs).toFixed(0)}  avg: ${avgMs.toFixed(2)}ms  worst: ${fpsWorst.current.toFixed(2)}ms  frames: ${fpsFrames.current}`,
-      )
-      fpsFrames.current = 0
-      fpsAccum.current = 0
-      fpsWorst.current = 0
-      fpsWindowStart.current = elapsed.current
-    }
 
     globalResolveRef.current = THREE.MathUtils.lerp(
       globalResolveRef.current,
@@ -197,12 +196,15 @@ export function ResolveFieldPoints({
     const resolve = globalResolveRef.current
 
     kickStrength.current = Math.max(0, kickStrength.current - dt * KICK_DECAY)
-    rotationY.current += dt * (ROTATION_SPEED + kickStrength.current * KICK_ROTATION_BOOST)
 
     const vw = state.viewport.width / 2
     const vh = state.viewport.height / 2
     const breath = 1 + Math.sin(elapsed.current * BREATH_SPEED) * BREATH_AMOUNT
-    const scale = Math.min(vw, vh) * 0.82 * breath
+    // vw/vh are now derived from the SCOPED canvas's own small size (the
+    // container wraps the portrait with -20% inset, not the full viewport),
+    // so a hero-like fraction of that box is correct again — it's sized
+    // relative to its own (portrait-scale) container, not the whole screen.
+    const scale = Math.min(vw, vh) * 0.8 * breath
 
     if (pointerEnabled && pointerActive.current) {
       const targetX = pointerNdc.current.x * vw
@@ -212,14 +214,8 @@ export function ResolveFieldPoints({
       pointerWorld.current.y = THREE.MathUtils.lerp(pointerWorld.current.y, targetY, follow)
     }
 
-    const pointerRadius = Math.min(vw, vh) * POINTER_RADIUS_FRACTION
-    const signatureRadius = Math.min(vw, vh) * SIGNATURE_REVEAL_FRACTION
-    const connectDist = edgeLength * scale * 1.25
-
-    const cosY = Math.cos(rotationY.current)
-    const sinY = Math.sin(rotationY.current)
-
-    let signatureRevealed = false
+    const repelRadius = Math.min(vw, vh) * REPEL_RADIUS_FRACTION
+    const connectRadius = scale * CONNECT_RADIUS_FRACTION
 
     // 1) Resolve each node's position + how "signal" (vs "noise") it is.
     for (let i = 0; i < n; i++) {
@@ -240,32 +236,45 @@ export function ResolveFieldPoints({
       const by = THREE.MathUtils.lerp(node.noise.y, node.lattice.y, eased)
       const bz = THREE.MathUtils.lerp(node.noise.z, node.lattice.z, eased)
 
-      // Rotate around Y, then apply a fixed X tilt for a 3/4 view.
-      const rx = bx * cosY + bz * sinY
-      const rz = -bx * sinY + bz * cosY
-      const ry = by * cosTilt - rz * sinTilt
-      const rz2 = by * sinTilt + rz * cosTilt
+      // Independent wander: each node drifts around its own position at its
+      // own frequency and phase (both randomized per node at construction) —
+      // asynchronous per-node motion, never a rigid body moving as one.
+      const wx = bx + Math.sin(elapsed.current * node.wanderFreq.x + node.wanderPhase.x) * node.wanderAmplitude
+      const wy = by + Math.sin(elapsed.current * node.wanderFreq.y + node.wanderPhase.y) * node.wanderAmplitude
+      const wz = bz + Math.sin(elapsed.current * node.wanderFreq.z + node.wanderPhase.z) * node.wanderAmplitude
 
-      let x = rx * scale
-      let y = ry * scale
-      const z = rz2 * scale
+      let x = wx * scale
+      let y = wy * scale
+      const z = wz * scale
 
+      // Chase-away repulsion: the TARGET displacement is whatever's needed
+      // to hold this node exactly repelRadius from the cursor's CURRENT
+      // position — not a bounded nudge, so the cursor can never close the
+      // gap no matter how it moves. The spring below only smooths how fast
+      // the DISPLAYED position converges to that target, never the target
+      // itself, which is why this reads as smooth rather than snappy.
       let glow = 0
+      let targetDx = 0
+      let targetDy = 0
       if (pointerEnabled && pointerActive.current) {
         const dx = x - pointerWorld.current.x
         const dy = y - pointerWorld.current.y
         const dist = Math.sqrt(dx * dx + dy * dy)
-        if (dist < pointerRadius) {
-          const influence = 1 - dist / pointerRadius
-          glow = influence * eased
-          const push = influence * POINTER_PUSH_FRACTION * scale
-          const nx = dist > 0.0001 ? dx / dist : 0
+        if (dist < repelRadius) {
+          const nx = dist > 0.0001 ? dx / dist : 1
           const ny = dist > 0.0001 ? dy / dist : 0
-          x += nx * push
-          y += ny * push
+          const targetX = pointerWorld.current.x + nx * repelRadius
+          const targetY = pointerWorld.current.y + ny * repelRadius
+          targetDx = targetX - x
+          targetDy = targetY - y
+          glow = (1 - dist / repelRadius) * eased
         }
-        if (i === SIGNATURE_INDEX && dist < signatureRadius) signatureRevealed = true
       }
+      const springT = Math.min(dt * REPULSION_SPRING_RATE, 1)
+      nodeDisplaceX[i] = THREE.MathUtils.lerp(nodeDisplaceX[i]!, targetDx, springT)
+      nodeDisplaceY[i] = THREE.MathUtils.lerp(nodeDisplaceY[i]!, targetDy, springT)
+      x += nodeDisplaceX[i]!
+      y += nodeDisplaceY[i]!
 
       // Kick impulse: radial outward push from center, decaying back.
       if (kickStrength.current > 0.001) {
@@ -279,23 +288,6 @@ export function ResolveFieldPoints({
       currentPos[i * 3 + 0] = x
       currentPos[i * 3 + 1] = y
       currentPos[i * 3 + 2] = z
-
-      if (i === SIGNATURE_INDEX) signatureWorldPos.set(x, y, z)
-    }
-
-    // Project the signature node to screen space and move its label there —
-    // direct DOM mutation, no React state, so this never re-renders.
-    const labelEl = labelElRef.current
-    if (labelEl) {
-      if (signatureRevealed) {
-        signatureWorldPos.project(state.camera)
-        const screenX = (signatureWorldPos.x * 0.5 + 0.5) * state.size.width
-        const screenY = (1 - (signatureWorldPos.y * 0.5 + 0.5)) * state.size.height
-        labelEl.style.transform = `translate(${(screenX + 14).toFixed(1)}px, ${(screenY - 10).toFixed(1)}px)`
-        labelEl.style.opacity = '1'
-      } else {
-        labelEl.style.opacity = '0'
-      }
     }
 
     // 2) Node colors: gray → amber with resolve, boosted near the cursor,
@@ -315,48 +307,76 @@ export function ResolveFieldPoints({
     pointColorAttr.needsUpdate = true
     ;(pointsGeometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true
 
-    // 3) Connections: only true edges of the ball light up, via distance
-    // against the shape's own known edge length — not a guessed threshold.
-    let vertexCount = 0
-    const connDist2 = connectDist * connectDist
-    for (let i = 0; i < n && vertexCount < linePositions.length - 6; i++) {
+    // 3) Connections: each node's MAX_NEIGHBORS nearest within connectRadius
+    // — not every pair in range, which is what produced a dense tangle once
+    // several nodes drifted close together. One consistent color, no
+    // per-edge variation.
+    const connRadius2 = connectRadius * connectRadius
+    nearestIdx.fill(-1)
+    nearestDist2.fill(Infinity)
+
+    // Pass 1: for every node, keep only its closest MAX_NEIGHBORS candidates
+    // (insertion-sort into a tiny fixed-size slot — cheap since MAX_NEIGHBORS
+    // is small, and avoids allocating a sortable array per node).
+    for (let i = 0; i < n; i++) {
       const xi = currentPos[i * 3 + 0]!
       const yi = currentPos[i * 3 + 1]!
       const zi = currentPos[i * 3 + 2]!
-      for (let j = i + 1; j < n; j++) {
-        const xj = currentPos[j * 3 + 0]!
-        const yj = currentPos[j * 3 + 1]!
-        const zj = currentPos[j * 3 + 2]!
-        const dx = xi - xj
-        const dy = yi - yj
-        const dz = zi - zj
+      for (let j = 0; j < n; j++) {
+        if (j === i) continue
+        const dx = xi - currentPos[j * 3 + 0]!
+        const dy = yi - currentPos[j * 3 + 1]!
+        const dz = zi - currentPos[j * 3 + 2]!
         const d2 = dx * dx + dy * dy + dz * dz
-        if (d2 >= connDist2) continue
+        if (d2 >= connRadius2) continue
 
-        const mixAmount = THREE.MathUtils.clamp(
-          (nodeResolve[i]! + nodeResolve[j]!) / 2 + Math.max(nodeGlow[i]!, nodeGlow[j]!) * 0.6,
-          0,
-          1,
-        )
-        const flash = Math.max(nodeFlash[i]!, nodeFlash[j]!)
-        const r = THREE.MathUtils.lerp(THREE.MathUtils.lerp(colorStaticVec.r, colorSignalVec.r, mixAmount), colorSparkVec.r, flash)
-        const g = THREE.MathUtils.lerp(THREE.MathUtils.lerp(colorStaticVec.g, colorSignalVec.g, mixAmount), colorSparkVec.g, flash)
-        const b = THREE.MathUtils.lerp(THREE.MathUtils.lerp(colorStaticVec.b, colorSignalVec.b, mixAmount), colorSparkVec.b, flash)
+        const rowBase = i * MAX_NEIGHBORS
+        let insertAt = -1
+        for (let k = 0; k < MAX_NEIGHBORS; k++) {
+          if (d2 < nearestDist2[rowBase + k]!) {
+            insertAt = k
+            break
+          }
+        }
+        if (insertAt === -1) continue
+        for (let k = MAX_NEIGHBORS - 1; k > insertAt; k--) {
+          nearestDist2[rowBase + k] = nearestDist2[rowBase + k - 1]!
+          nearestIdx[rowBase + k] = nearestIdx[rowBase + k - 1]!
+        }
+        nearestDist2[rowBase + insertAt] = d2
+        nearestIdx[rowBase + insertAt] = j
+      }
+    }
+
+    // Pass 2: draw an edge for every pair where EITHER side kept the other
+    // as one of its nearest — a mutual-AND requirement produces a much
+    // sparser, often visually disconnected graph at this node count.
+    let vertexCount = 0
+    for (let i = 0; i < n && vertexCount < linePositions.length - 6; i++) {
+      for (let j = i + 1; j < n; j++) {
+        let isNeighbor = false
+        for (let k = 0; k < MAX_NEIGHBORS; k++) {
+          if (nearestIdx[i * MAX_NEIGHBORS + k] === j || nearestIdx[j * MAX_NEIGHBORS + k] === i) {
+            isNeighbor = true
+            break
+          }
+        }
+        if (!isNeighbor) continue
 
         const base = vertexCount * 3
-        linePositions[base + 0] = xi
-        linePositions[base + 1] = yi
-        linePositions[base + 2] = zi
-        lineColors[base + 0] = r
-        lineColors[base + 1] = g
-        lineColors[base + 2] = b
+        linePositions[base + 0] = currentPos[i * 3 + 0]!
+        linePositions[base + 1] = currentPos[i * 3 + 1]!
+        linePositions[base + 2] = currentPos[i * 3 + 2]!
+        lineColors[base + 0] = colorSignalVec.r
+        lineColors[base + 1] = colorSignalVec.g
+        lineColors[base + 2] = colorSignalVec.b
 
-        linePositions[base + 3] = xj
-        linePositions[base + 4] = yj
-        linePositions[base + 5] = zj
-        lineColors[base + 3] = r
-        lineColors[base + 4] = g
-        lineColors[base + 5] = b
+        linePositions[base + 3] = currentPos[j * 3 + 0]!
+        linePositions[base + 4] = currentPos[j * 3 + 1]!
+        linePositions[base + 5] = currentPos[j * 3 + 2]!
+        lineColors[base + 3] = colorSignalVec.r
+        lineColors[base + 4] = colorSignalVec.g
+        lineColors[base + 5] = colorSignalVec.b
 
         vertexCount += 2
       }
