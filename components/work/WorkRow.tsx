@@ -8,7 +8,6 @@ import { Resolve } from '@/components/primitives/Resolve'
 import { Chip } from '@/components/ui/Chip'
 import { BulletCascade } from '@/components/work/BulletCascade'
 import { MetricsGrid } from '@/components/work/MetricsGrid'
-import { ProjectModal } from '@/components/work/ProjectModal'
 import { pad2 } from '@/lib/utils'
 
 interface WorkRowProps {
@@ -23,20 +22,24 @@ interface WorkRowProps {
 
 /**
  * A row in the work index — used on the homepage's featured list and on the
- * full /work page. Clicking opens a modal with the project's detail (see
+ * full /work page. Clicking expands an inline accordion panel in place (see
  * WorkAccordion for the shared "only one open" state) instead of navigating
- * to a case-study page — there isn't one anymore. Everything in the row
- * itself (title, thesis, stack preview, year) stays visible by default; the
- * modal adds what the row doesn't have room for. An inline expand-in-place
- * panel was tried first — see git history on BulletCascade/ProjectModal for
- * why that fought its own `overflow: hidden` container hard enough to be
- * worth replacing with a portaled modal instead.
+ * to a case-study page — there isn't one anymore. A portaled modal was
+ * tried instead of this and reverted — it added real weight (framer-motion,
+ * scroll-gating, backdrop-blur) for content that reads fine inline.
+ *
+ * The panel's own content plays the site's normal `Resolve` reveal (see
+ * that file) on open — the same blur→sharp/offset→settled motif every
+ * other entrance on the site uses, just driven by `isOpen` instead of
+ * scroll position (`visible={isOpen}` bypasses Resolve's IntersectionObserver).
+ * One reveal for the whole panel, not a per-bullet stagger — a single
+ * clean motion reads better here than several competing ones.
  */
 export function WorkRow({ project, index, highlights, intro }: WorkRowProps) {
   const { hovered, setHovered } = useCrossHighlight()
   const { expandedSlug, setExpandedSlug } = useWorkAccordion()
   const isOpen = expandedSlug === project.slug
-  const titleId = `${project.slug}-modal-title`
+  const direction = index % 2 === 0 ? 'left' : 'right'
 
   const isDimmed =
     hovered !== null &&
@@ -46,11 +49,10 @@ export function WorkRow({ project, index, highlights, intro }: WorkRowProps) {
     )
 
   return (
-    <Resolve index={index} direction={index % 2 === 0 ? 'left' : 'right'}>
+    <Resolve index={index} direction={direction}>
       <div id={project.slug} className="border-t border-[var(--color-border)]" style={{ opacity: isDimmed ? 0.4 : 1 }}>
         <button
           type="button"
-          aria-haspopup="dialog"
           aria-expanded={isOpen}
           onClick={() => setExpandedSlug(isOpen ? null : project.slug)}
           onMouseEnter={() => setHovered({ kind: 'project', id: project.slug })}
@@ -100,57 +102,54 @@ export function WorkRow({ project, index, highlights, intro }: WorkRowProps) {
           </div>
         </button>
 
-        <ProjectModal isOpen={isOpen} onClose={() => setExpandedSlug(null)} titleId={titleId}>
-          <span className="text-label text-[var(--color-signal)]">{pad2(project.index)}</span>
-          <h2 id={titleId} className="text-h3 mt-1">
-            {project.title}
-          </h2>
-          <p className="text-caption mt-1 text-[var(--color-text-dim)]">{project.thesis}</p>
+        <div className="accordion-panel" data-open={isOpen}>
+          <div className="accordion-panel-inner pb-10">
+            <Resolve visible={isOpen} direction={direction}>
+              <div className="flex flex-wrap items-center gap-3">
+                {project.stack.map((s) => (
+                  <Chip key={s}>{s}</Chip>
+                ))}
+              </div>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            {project.stack.map((s) => (
-              <Chip key={s}>{s}</Chip>
-            ))}
+              <div className="mt-6 flex flex-wrap items-center gap-6 text-label text-[var(--color-text-dim)]">
+                <span>
+                  {project.role}
+                  {project.org ? ` · ${project.org}` : ''}
+                </span>
+                {project.links.repo && (
+                  <a href={project.links.repo} target="_blank" rel="noreferrer" className="hover:text-[var(--color-signal)]">
+                    Repo ↗
+                  </a>
+                )}
+                {project.links.live && (
+                  <a href={project.links.live} target="_blank" rel="noreferrer" className="hover:text-[var(--color-signal)]">
+                    Live ↗
+                  </a>
+                )}
+              </div>
+
+              {project.confidential && (
+                <p className="text-caption mt-6 max-w-xl border-l-2 border-[var(--color-border)] pl-4 text-[var(--color-text-dim)]">
+                  Some details omitted — NDA. Architecture and outcomes only, no client data.
+                </p>
+              )}
+
+              {intro && <div className="mt-8 max-w-2xl text-body text-[var(--color-text-secondary)]">{intro}</div>}
+
+              {highlights && highlights.length > 0 && (
+                <div className="mt-8">
+                  <BulletCascade bullets={highlights} />
+                </div>
+              )}
+
+              {project.metrics.length > 0 && (
+                <div className="mt-10">
+                  <MetricsGrid metrics={project.metrics} />
+                </div>
+              )}
+            </Resolve>
           </div>
-
-          <div className="mt-6 flex flex-wrap items-center gap-6 text-label text-[var(--color-text-dim)]">
-            <span>
-              {project.role}
-              {project.org ? ` · ${project.org}` : ''}
-            </span>
-            <span>{project.year}</span>
-            {project.links.repo && (
-              <a href={project.links.repo} target="_blank" rel="noreferrer" className="hover:text-[var(--color-signal)]">
-                Repo ↗
-              </a>
-            )}
-            {project.links.live && (
-              <a href={project.links.live} target="_blank" rel="noreferrer" className="hover:text-[var(--color-signal)]">
-                Live ↗
-              </a>
-            )}
-          </div>
-
-          {project.confidential && (
-            <p className="text-caption mt-6 max-w-xl border-l-2 border-[var(--color-border)] pl-4 text-[var(--color-text-dim)]">
-              Some details omitted — NDA. Architecture and outcomes only, no client data.
-            </p>
-          )}
-
-          {intro && <div className="mt-8 text-body text-[var(--color-text-secondary)]">{intro}</div>}
-
-          {highlights && highlights.length > 0 && (
-            <div className="mt-8">
-              <BulletCascade bullets={highlights} />
-            </div>
-          )}
-
-          {project.metrics.length > 0 && (
-            <div className="mt-10">
-              <MetricsGrid metrics={project.metrics} />
-            </div>
-          )}
-        </ProjectModal>
+        </div>
       </div>
     </Resolve>
   )

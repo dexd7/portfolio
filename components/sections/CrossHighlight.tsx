@@ -16,9 +16,24 @@ const CrossHighlightContext = createContext<CrossHighlightValue | null>(null)
  * row highlights the skills it proves, and hovering a skill highlights the
  * projects that prove it. Pure data (`project.proves` / `skill.provenBy`),
  * no bespoke wiring beyond this context.
+ *
+ * Touch devices never get a real hover — tapping a row fires synthetic
+ * mouseenter/mouseleave/focus events that leave rows stuck dimmed or
+ * flickering the opacity transition against unrelated animations (the
+ * accordion opening, Resolve's own reveal). `setHovered` is a no-op unless
+ * the device actually has a fine pointer with real hover — same check
+ * ResolveField.tsx uses for the same reason.
  */
 export function CrossHighlightProvider({ children }: { children: ReactNode }) {
-  const [hovered, setHovered] = useState<HoverTarget>(null)
+  const [hovered, setHoveredState] = useState<HoverTarget>(null)
+  const [hoverCapable] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+  )
+
+  const setHovered = (target: HoverTarget) => {
+    if (hoverCapable) setHoveredState(target)
+  }
+
   return <CrossHighlightContext.Provider value={{ hovered, setHovered }}>{children}</CrossHighlightContext.Provider>
 }
 

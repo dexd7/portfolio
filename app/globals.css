@@ -214,10 +214,19 @@ body {
 .resolve[data-direction='right'] {
   transform: translateX(48px) scale(0.97);
 }
+/* filter: none / transform: none / will-change: auto here, not the zero-
+   equivalent values (blur(0px), translateY(0) scale(1)) — a *zero* filter or
+   identity transform still establishes a stacking/compositing context and
+   permanently pins a GPU layer via will-change. Content that changes INSIDE
+   that layer afterward (WorkRow's accordion panel expanding, e.g.) can then
+   fail to repaint on mobile Safari/Chrome until something else forces a
+   repaint (scrolling) — a real, well-documented WebKit quirk, not a
+   cosmetic nitpick. Dropping all three once resolved releases the layer. */
 .resolve[data-visible='true'] {
   opacity: 1;
-  filter: blur(0px);
-  transform: translateY(0) scale(1);
+  filter: none;
+  transform: none;
+  will-change: auto;
 }
 @media (prefers-reduced-motion: reduce) {
   .resolve {
@@ -241,13 +250,34 @@ body {
   }
 }
 
-/* Resume-bullet tile styling (BulletCascade, inside ProjectModal) — visual
-   treatment only. The zig-zag entrance itself is animated by framer-motion
-   (inline transforms via motion values), not a CSS transition, so nothing
-   here should touch opacity/transform or it'll fight framer-motion's own
-   per-frame writes to those same properties. */
+/* Resume-bullet tile styling (BulletCascade, inside WorkRow's accordion
+   panel) — visual treatment only. No animation of its own; it's revealed
+   as part of the panel's own Resolve wrapper. */
 .tile {
   box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.35);
+}
+
+/* WorkRow's accordion panel — the CSS grid-rows expand technique: no JS
+   height measurement, animates smoothly to the content's real height
+   regardless of length. The inner .accordion-panel-inner's min-height: 0
+   is load-bearing — without it a grid item defaults to its content's
+   intrinsic height and the row never actually collapses to 0fr. */
+.accordion-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: grid-template-rows var(--duration-scene) var(--ease-settle);
+}
+.accordion-panel[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+.accordion-panel-inner {
+  min-height: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .accordion-panel {
+    transition-duration: var(--duration-micro);
+  }
 }
 
 .magnetic {

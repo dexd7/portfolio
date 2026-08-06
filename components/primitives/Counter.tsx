@@ -25,6 +25,12 @@ function easeOutCubic(t: number) {
  * decoration on top of a number that must already be correct in the DOM, not
  * a substitute for it. Reduced-motion and non-JS renders jump straight to
  * the end value.
+ *
+ * The tick loop writes straight to the span's textContent instead of
+ * setState — a setState-per-frame loop here would force a React re-render
+ * every ~16ms for the whole animation's duration, for no benefit over a
+ * direct DOM write. React only touches this span once, for the settled
+ * final value (needed for a correct no-JS/reduced-motion render).
  */
 export function Counter({
   to,
@@ -37,32 +43,38 @@ export function Counter({
 }: CounterProps) {
   const { ref, inView } = useInView<HTMLSpanElement>({ threshold: 0.5, once: true })
   const reducedMotion = useReducedMotion()
-  const [value, setValue] = useState(reducedMotion ? to : from)
+  const [settled, setSettled] = useState(reducedMotion ? to : from)
 
   useEffect(() => {
     if (!inView) return
     if (reducedMotion) {
-      setValue(to)
+      setSettled(to)
       return
     }
 
     let raf: number
     const start = performance.now()
+    const node = ref.current
 
     const tick = (now: number) => {
       const t = Math.min((now - start) / durationMs, 1)
-      setValue(from + (to - from) * easeOutCubic(t))
-      if (t < 1) raf = requestAnimationFrame(tick)
+      const value = from + (to - from) * easeOutCubic(t)
+      if (node) node.textContent = `${prefix}${value.toFixed(decimals)}${suffix}`
+      if (t < 1) {
+        raf = requestAnimationFrame(tick)
+      } else {
+        setSettled(to)
+      }
     }
 
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [inView, reducedMotion, to, from, durationMs])
+  }, [inView, reducedMotion, to, from, durationMs, prefix, suffix, decimals, ref])
 
   return (
     <span ref={ref} className={cn('tabular-nums', className)}>
       {prefix}
-      {value.toFixed(decimals)}
+      {settled.toFixed(decimals)}
       {suffix}
     </span>
   )

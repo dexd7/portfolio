@@ -15,11 +15,6 @@ const BASE_DRIFT_MIN = 0.006
 const BASE_DRIFT_MAX = 0.018
 const WANDER_FREQ_MIN = 0.05
 const WANDER_FREQ_MAX = 0.15
-// Flicker is a much faster oscillation than wander — wander is a slow curve
-// in a node's path, flicker is the flame-like brightness pulse applied only
-// when a node is near the cursor (see ResolveFieldPoints.tsx).
-const FLICKER_FREQ_MIN = 8
-const FLICKER_FREQ_MAX = 16
 
 /**
  * The full-page background field: 160 nodes scattered across the whole
@@ -53,9 +48,6 @@ export interface FieldGeometry {
   wanderPhaseY: Float32Array
   /** Static per-node depth in [0.65, 1] — drives brightness only (this field is 2D; there's no real z to speak of). */
   depth: Float32Array
-  /** Per-node flicker frequency (rad/s) and phase — a fast brightness pulse, only visible once a node is near the cursor. Randomized per node so nearby glowing nodes don't flicker in lockstep. */
-  flickerFreq: Float32Array
-  flickerPhase: Float32Array
 }
 
 export function buildFieldNodes(seed = 7): FieldGeometry {
@@ -73,8 +65,6 @@ export function buildFieldNodes(seed = 7): FieldGeometry {
   const wanderPhaseX = new Float32Array(count)
   const wanderPhaseY = new Float32Array(count)
   const depth = new Float32Array(count)
-  const flickerFreq = new Float32Array(count)
-  const flickerPhase = new Float32Array(count)
 
   for (let i = 0; i < count; i++) {
     normX[i] = rand() * 2 - 1
@@ -91,9 +81,6 @@ export function buildFieldNodes(seed = 7): FieldGeometry {
     wanderPhaseY[i] = rand() * Math.PI * 2
 
     depth[i] = 0.65 + rand() * 0.35
-
-    flickerFreq[i] = FLICKER_FREQ_MIN + rand() * (FLICKER_FREQ_MAX - FLICKER_FREQ_MIN)
-    flickerPhase[i] = rand() * Math.PI * 2
   }
 
   return {
@@ -109,7 +96,5 @@ export function buildFieldNodes(seed = 7): FieldGeometry {
     wanderPhaseX,
     wanderPhaseY,
     depth,
-    flickerFreq,
-    flickerPhase,
   }
 }

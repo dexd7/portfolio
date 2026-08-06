@@ -124,15 +124,12 @@ export function ResolveFieldPoints({
     wanderPhaseX,
     wanderPhaseY,
     depth,
-    flickerFreq,
-    flickerPhase,
   } = useMemo(() => buildFieldNodes(), [])
   const n = count
 
   const colorStaticVec = useMemo(() => new THREE.Color(colorStatic), [colorStatic])
   const colorSignalVec = useMemo(() => new THREE.Color(colorSignal), [colorSignal])
   const colorBackgroundVec = useMemo(() => new THREE.Color(colorBackground), [colorBackground])
-  const colorHotVec = useMemo(() => new THREE.Color('#ffffff'), [])
 
   // Live position/velocity state — mutated in place every frame, never
   // reassigned, so this is stable across renders with no allocation.
@@ -141,12 +138,6 @@ export function ResolveFieldPoints({
   const impulseVelX = useMemo(() => new Float32Array(n), [n])
   const impulseVelY = useMemo(() => new Float32Array(n), [n])
   const currentPos = useMemo(() => new Float32Array(n * 3), [n])
-  // Each node's resting color (depth-based, theme-dependent) — computed
-  // once below, then blended toward a hot glow color per-frame near the
-  // cursor rather than recomputed from scratch every frame.
-  const baseColorR = useMemo(() => new Float32Array(n), [n])
-  const baseColorG = useMemo(() => new Float32Array(n), [n])
-  const baseColorB = useMemo(() => new Float32Array(n), [n])
 
   const maxEdges = n * MAX_NEIGHBORS
   const linePositions = useMemo(() => new Float32Array(maxEdges * 2 * 3), [maxEdges])
@@ -202,19 +193,21 @@ export function ResolveFieldPoints({
     [colorStaticVec],
   )
 
-  // Each node's RESTING color depends only on theme + its static depth —
-  // compute once into the scratch arrays here, not every frame. The frame
-  // loop below blends FROM this base color toward a hot glow color for
-  // whichever nodes are currently near the cursor, then writes the result
-  // into the GPU-backed buffer.
+  // Each node's color depends only on theme + its static depth, and never
+  // changes after that — written directly into the GPU-backed buffer once
+  // here rather than recomputed every frame (this used to blend toward a
+  // cursor-proximity glow per-frame; static reads cleaner, so that's gone).
   useEffect(() => {
+    const colorAttr = pointsGeometry.getAttribute('color') as THREE.BufferAttribute
+    const colorArr = colorAttr.array as Float32Array
     for (let i = 0; i < n; i++) {
       const t = depth[i]!
-      baseColorR[i] = THREE.MathUtils.lerp(colorBackgroundVec.r, colorSignalVec.r, t)
-      baseColorG[i] = THREE.MathUtils.lerp(colorBackgroundVec.g, colorSignalVec.g, t)
-      baseColorB[i] = THREE.MathUtils.lerp(colorBackgroundVec.b, colorSignalVec.b, t)
+      colorArr[i * 3 + 0] = THREE.MathUtils.lerp(colorBackgroundVec.r, colorSignalVec.r, t)
+      colorArr[i * 3 + 1] = THREE.MathUtils.lerp(colorBackgroundVec.g, colorSignalVec.g, t)
+      colorArr[i * 3 + 2] = THREE.MathUtils.lerp(colorBackgroundVec.b, colorSignalVec.b, t)
     }
-  }, [n, depth, colorBackgroundVec, colorSignalVec, baseColorR, baseColorG, baseColorB])
+    colorAttr.needsUpdate = true
+  }, [n, depth, colorBackgroundVec, colorSignalVec, pointsGeometry])
 
   // Pointer tracked on `window`, not R3F's canvas-scoped pointer — the
   // canvas has pointer-events-none (so it never blocks clicks on real
@@ -319,16 +312,11 @@ export function ResolveFieldPoints({
 
     const heightPx = state.viewport.height
     const damp = Math.exp(-DAMPING_RATE * dt)
-    const pointColorAttr = pointsGeometry.getAttribute('color') as THREE.BufferAttribute
-    const pointColorArr = pointColorAttr.array as Float32Array
 
     for (let i = 0; i < n; i++) {
       // 1) Cursor impulse — an acceleration added to this node's own
       // velocity, not a target position. Nothing here ever pulls a node
-      // back toward where it started. The same falloff also drives this
-      // node's glow heat below — reusing the distance already computed
-      // here rather than a second pass over all nodes.
-      let heat = 0
+      // back toward where it started.
       if (pointerEnabled && pointerActive.current) {
         const dx = posX[i]! - pointerX
         const dy = posY[i]! - pointerY
@@ -341,28 +329,8 @@ export function ResolveFieldPoints({
           const falloff = Math.sqrt(t)
           impulseVelX[i]! += (dx / dist) * PUSH_ACCEL * falloff * dt
           impulseVelY[i]! += (dy / dist) * PUSH_ACCEL * falloff * dt
-
-          // Glowing flame: a fast per-node flicker (own frequency/phase, so
-          // nearby glowing nodes don't pulse in lockstep) modulating the
-          // same proximity falloff — never fully dark within the radius.
-          const flicker = 0.6 + 0.4 * Math.sin(elapsed.current * flickerFreq[i]! + flickerPhase[i]!)
-          heat = falloff * flicker
         }
       }
-
-      // Color: base (depth/theme) -> warm toward the accent as heat rises
-      // -> a hot white core only at the strongest, closest/brightest-flicker
-      // moments. Same two-stage lerp idiom as the arrival-flash effect this
-      // file used to have, just driven by cursor proximity instead of a
-      // one-shot resolve event.
-      const toAccent = Math.min(1, heat * 1.3)
-      const toWhite = heat * heat
-      const cr = THREE.MathUtils.lerp(baseColorR[i]!, colorSignalVec.r, toAccent)
-      const cg = THREE.MathUtils.lerp(baseColorG[i]!, colorSignalVec.g, toAccent)
-      const cb = THREE.MathUtils.lerp(baseColorB[i]!, colorSignalVec.b, toAccent)
-      pointColorArr[i * 3 + 0] = THREE.MathUtils.lerp(cr, colorHotVec.r, toWhite)
-      pointColorArr[i * 3 + 1] = THREE.MathUtils.lerp(cg, colorHotVec.g, toWhite)
-      pointColorArr[i * 3 + 2] = THREE.MathUtils.lerp(cb, colorHotVec.b, toWhite)
 
       // 2) Cap impulse speed so repeated hovering can't fling a node
       // off-screen — each further push adds progressively less once near cap.
@@ -404,7 +372,6 @@ export function ResolveFieldPoints({
     }
 
     ;(pointsGeometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true
-    pointColorAttr.needsUpdate = true
 
     // Connections: each node's MAX_NEIGHBORS nearest within connectRadius —
     // not every pair in range, which produces a dense tangle once several
