@@ -69,6 +69,14 @@ body {
   background: var(--color-canvas);
   color: var(--color-text);
   font-family: var(--font-sans);
+  /* Defensive guard: several entrance animations (Resolve's left/right
+     slide-in) rest a few pixels past the viewport edge by design, which is
+     harmless on desktop's wide margins but produces a real horizontal
+     scrollbar on narrow mobile viewports. Doesn't affect position:fixed
+     content (Nav, ResolveField, ProjectModal) — fixed is relative to the
+     viewport regardless of body overflow — and nothing in this codebase
+     uses position:sticky for it to break. */
+  overflow-x: hidden;
 }
 
 ::selection {
@@ -233,49 +241,13 @@ body {
   }
 }
 
-/* Piano-tile resume-bullet cascade (BulletCascade) — slides in from the
-   left like a slip being dealt onto a pile. Opacity/transform are driven
-   directly by BulletCascade.tsx's scroll handler (a CONTINUOUS function of
-   scroll position, not a visibility threshold — see that file's doc
-   comment for why), so there is no data-visible toggle here. The short
-   transition below only smooths between individual scroll-event ticks;
-   it's intentionally much shorter than a normal entrance animation
-   (--duration-micro, not --duration-reveal) so it never lags behind fast
-   scrolling. */
+/* Resume-bullet tile styling (BulletCascade, inside ProjectModal) — visual
+   treatment only. The zig-zag entrance itself is animated by framer-motion
+   (inline transforms via motion values), not a CSS transition, so nothing
+   here should touch opacity/transform or it'll fight framer-motion's own
+   per-frame writes to those same properties. */
 .tile {
-  will-change: opacity, transform;
   box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.35);
-  transition:
-    opacity var(--duration-micro) linear,
-    transform var(--duration-micro) linear;
-}
-@media (prefers-reduced-motion: reduce) {
-  .tile {
-    transition: none;
-  }
-}
-
-/* WorkRow's accordion panel — the CSS grid-rows expand technique: no JS
-   height measurement, animates smoothly to the content's real height
-   regardless of length. The inner .accordion-panel-inner's min-height: 0
-   is load-bearing — without it a grid item defaults to its content's
-   intrinsic height and the row never actually collapses to 0fr. */
-.accordion-panel {
-  display: grid;
-  grid-template-rows: 0fr;
-  overflow: hidden;
-  transition: grid-template-rows var(--duration-scene) var(--ease-settle);
-}
-.accordion-panel[data-open='true'] {
-  grid-template-rows: 1fr;
-}
-.accordion-panel-inner {
-  min-height: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-  .accordion-panel {
-    transition-duration: var(--duration-micro);
-  }
 }
 
 .magnetic {

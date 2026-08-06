@@ -8,6 +8,7 @@ import { Resolve } from '@/components/primitives/Resolve'
 import { Chip } from '@/components/ui/Chip'
 import { BulletCascade } from '@/components/work/BulletCascade'
 import { MetricsGrid } from '@/components/work/MetricsGrid'
+import { ProjectModal } from '@/components/work/ProjectModal'
 import { pad2 } from '@/lib/utils'
 
 interface WorkRowProps {
@@ -22,16 +23,20 @@ interface WorkRowProps {
 
 /**
  * A row in the work index — used on the homepage's featured list and on the
- * full /work page. Clicking expands an inline accordion panel in place
- * (see WorkAccordion for the shared "only one open" state) instead of
- * navigating to a case-study page — there isn't one anymore. Everything in
- * the collapsed row (title, thesis, stack preview, year) stays visible by
- * default; the panel adds what the row doesn't have room for.
+ * full /work page. Clicking opens a modal with the project's detail (see
+ * WorkAccordion for the shared "only one open" state) instead of navigating
+ * to a case-study page — there isn't one anymore. Everything in the row
+ * itself (title, thesis, stack preview, year) stays visible by default; the
+ * modal adds what the row doesn't have room for. An inline expand-in-place
+ * panel was tried first — see git history on BulletCascade/ProjectModal for
+ * why that fought its own `overflow: hidden` container hard enough to be
+ * worth replacing with a portaled modal instead.
  */
 export function WorkRow({ project, index, highlights, intro }: WorkRowProps) {
   const { hovered, setHovered } = useCrossHighlight()
   const { expandedSlug, setExpandedSlug } = useWorkAccordion()
   const isOpen = expandedSlug === project.slug
+  const titleId = `${project.slug}-modal-title`
 
   const isDimmed =
     hovered !== null &&
@@ -45,6 +50,7 @@ export function WorkRow({ project, index, highlights, intro }: WorkRowProps) {
       <div id={project.slug} className="border-t border-[var(--color-border)]" style={{ opacity: isDimmed ? 0.4 : 1 }}>
         <button
           type="button"
+          aria-haspopup="dialog"
           aria-expanded={isOpen}
           onClick={() => setExpandedSlug(isOpen ? null : project.slug)}
           onMouseEnter={() => setHovered({ kind: 'project', id: project.slug })}
@@ -63,73 +69,88 @@ export function WorkRow({ project, index, highlights, intro }: WorkRowProps) {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-4 pl-[calc(1.5rem+1.7em)] sm:pl-0">
-            <span className="hidden text-caption text-[var(--color-text-dim)] md:inline">
-              {project.stack.slice(0, 3).join(' · ')}
+          {/* Wrapper mirrors the title row's own "flex items-baseline gap-6"
+              exactly, so the hidden index-width spacer forces this line to
+              land flush under the title on mobile — measured by construction
+              instead of a guessed padding value. sm:contents/sm:hidden fold
+              it back to today's sm:flex-row desktop layout. */}
+          <div className="flex items-baseline gap-6 sm:contents">
+            <span aria-hidden="true" className="invisible text-label sm:hidden">
+              {pad2(project.index)}
             </span>
-            <span className="text-caption text-[var(--color-text-dim)]">{project.year}</span>
-            <svg
-              aria-hidden="true"
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="text-[var(--color-signal)] transition-transform duration-[var(--duration-ui)]"
-              style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-            >
-              <path d="M2 4l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <div className="flex shrink-0 items-center gap-4">
+              <span className="hidden text-caption text-[var(--color-text-dim)] md:inline">
+                {project.stack.slice(0, 3).join(' · ')}
+              </span>
+              <span className="text-caption text-[var(--color-text-dim)]">{project.year}</span>
+              <svg
+                aria-hidden="true"
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="text-[var(--color-signal)] transition-transform duration-[var(--duration-ui)]"
+                style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              >
+                <path d="M2 4l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
           </div>
         </button>
 
-        <div className="accordion-panel" data-open={isOpen}>
-          <div className="accordion-panel-inner pb-10">
-            <div className="flex flex-wrap items-center gap-3">
-              {project.stack.map((s) => (
-                <Chip key={s}>{s}</Chip>
-              ))}
-            </div>
+        <ProjectModal isOpen={isOpen} onClose={() => setExpandedSlug(null)} titleId={titleId}>
+          <span className="text-label text-[var(--color-signal)]">{pad2(project.index)}</span>
+          <h2 id={titleId} className="text-h3 mt-1">
+            {project.title}
+          </h2>
+          <p className="text-caption mt-1 text-[var(--color-text-dim)]">{project.thesis}</p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-6 text-label text-[var(--color-text-dim)]">
-              <span>
-                {project.role}
-                {project.org ? ` · ${project.org}` : ''}
-              </span>
-              {project.links.repo && (
-                <a href={project.links.repo} target="_blank" rel="noreferrer" className="hover:text-[var(--color-signal)]">
-                  Repo ↗
-                </a>
-              )}
-              {project.links.live && (
-                <a href={project.links.live} target="_blank" rel="noreferrer" className="hover:text-[var(--color-signal)]">
-                  Live ↗
-                </a>
-              )}
-            </div>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            {project.stack.map((s) => (
+              <Chip key={s}>{s}</Chip>
+            ))}
+          </div>
 
-            {project.confidential && (
-              <p className="text-caption mt-6 max-w-xl border-l-2 border-[var(--color-border)] pl-4 text-[var(--color-text-dim)]">
-                Some details omitted — NDA. Architecture and outcomes only, no client data.
-              </p>
+          <div className="mt-6 flex flex-wrap items-center gap-6 text-label text-[var(--color-text-dim)]">
+            <span>
+              {project.role}
+              {project.org ? ` · ${project.org}` : ''}
+            </span>
+            <span>{project.year}</span>
+            {project.links.repo && (
+              <a href={project.links.repo} target="_blank" rel="noreferrer" className="hover:text-[var(--color-signal)]">
+                Repo ↗
+              </a>
             )}
-
-            {intro && <div className="mt-8 max-w-2xl text-body text-[var(--color-text-secondary)]">{intro}</div>}
-
-            {highlights && highlights.length > 0 && (
-              <div className="mt-8">
-                <BulletCascade bullets={highlights} />
-              </div>
-            )}
-
-            {project.metrics.length > 0 && (
-              <div className="mt-10">
-                <MetricsGrid metrics={project.metrics} />
-              </div>
+            {project.links.live && (
+              <a href={project.links.live} target="_blank" rel="noreferrer" className="hover:text-[var(--color-signal)]">
+                Live ↗
+              </a>
             )}
           </div>
-        </div>
+
+          {project.confidential && (
+            <p className="text-caption mt-6 max-w-xl border-l-2 border-[var(--color-border)] pl-4 text-[var(--color-text-dim)]">
+              Some details omitted — NDA. Architecture and outcomes only, no client data.
+            </p>
+          )}
+
+          {intro && <div className="mt-8 text-body text-[var(--color-text-secondary)]">{intro}</div>}
+
+          {highlights && highlights.length > 0 && (
+            <div className="mt-8">
+              <BulletCascade bullets={highlights} />
+            </div>
+          )}
+
+          {project.metrics.length > 0 && (
+            <div className="mt-10">
+              <MetricsGrid metrics={project.metrics} />
+            </div>
+          )}
+        </ProjectModal>
       </div>
     </Resolve>
   )

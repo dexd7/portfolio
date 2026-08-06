@@ -25,7 +25,7 @@ export function CopyEmail({ email, className }: CopyEmailProps) {
 
   return (
     <button type="button" onClick={handleCopy} className={cn('group inline-flex flex-wrap items-baseline gap-4 text-left', className)}>
-      <span className="text-display-l transition-colors duration-[var(--duration-ui)] group-hover:text-[var(--color-signal)]">
+      <span className="text-h2 sm:text-display-l break-all transition-colors duration-[var(--duration-ui)] group-hover:text-[var(--color-signal)]">
         {email}
       </span>
       <span className="text-label text-[var(--color-signal)]" aria-live="polite">

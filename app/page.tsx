@@ -67,7 +67,7 @@ export default function HomePage() {
               </Resolve>
             </div>
 
-            <Resolve index={1}>
+            <Resolve index={1} className="order-first lg:order-none">
               <PortraitStage src="/images/vihaan-portrait.jpg" alt={`${site.name}, UW–Madison, 2026`} />
             </Resolve>
           </div>
