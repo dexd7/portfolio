@@ -233,26 +233,25 @@ body {
   }
 }
 
-/* Piano-tile resume-bullet cascade (BulletCascade) — a distinct visual from
-   .resolve on purpose: tiles drop straight down and snap into place (no
-   blur, sharper easing), reading as structured/sequential rather than a
-   repeat of the site's blur-and-settle reveal motif. */
+/* Piano-tile resume-bullet cascade (BulletCascade) — slides in from the
+   left like a slip being dealt onto a pile. Opacity/transform are driven
+   directly by BulletCascade.tsx's scroll handler (a CONTINUOUS function of
+   scroll position, not a visibility threshold — see that file's doc
+   comment for why), so there is no data-visible toggle here. The short
+   transition below only smooths between individual scroll-event ticks;
+   it's intentionally much shorter than a normal entrance animation
+   (--duration-micro, not --duration-reveal) so it never lags behind fast
+   scrolling. */
 .tile {
-  opacity: 0;
-  transform: translateY(-32px);
-  transition:
-    opacity var(--duration-reveal) var(--ease-settle),
-    transform var(--duration-reveal) var(--ease-settle);
   will-change: opacity, transform;
-}
-.tile[data-visible='true'] {
-  opacity: 1;
-  transform: translateY(0);
+  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.35);
+  transition:
+    opacity var(--duration-micro) linear,
+    transform var(--duration-micro) linear;
 }
 @media (prefers-reduced-motion: reduce) {
   .tile {
-    transform: none;
-    transition-duration: var(--duration-micro);
+    transition: none;
   }
 }
 

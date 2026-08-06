@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { Portrait } from './Portrait'
-import { ResolveField } from '@/components/visual/ResolveField'
 
 interface PortraitStageProps {
   src: string
@@ -15,10 +14,11 @@ interface PortraitStageProps {
  * intensified, accelerating "fly up and out" exit (rising, fading, shrinking)
  * as it scrolls past the top of the viewport. All written directly to the
  * image wrapper's style in a scroll listener — no React state, so scrolling
- * never re-renders this tree. ResolveField (the node field) is mounted INSIDE
- * imgWrapRef, not as a sibling — it needs to inherit the exact same
- * transform as the photo so they move as one glued unit during the float
- * and the fly-up-and-out exit, rather than drifting independently.
+ * never re-renders this tree. The particle field used to be mounted inside
+ * imgWrapRef here; it's now a full-page background mounted once in
+ * app/page.tsx instead — this wrapper's `will-change-transform` would
+ * otherwise become the containing block for the field's `position: fixed`
+ * and silently break full-viewport positioning.
  */
 export function PortraitStage({ src, alt }: PortraitStageProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -63,7 +63,6 @@ export function PortraitStage({ src, alt }: PortraitStageProps) {
     <div ref={containerRef} className="relative">
       <div ref={imgWrapRef} className="relative will-change-transform">
         <Portrait src={src} alt={alt} />
-        <ResolveField />
       </div>
     </div>
   )

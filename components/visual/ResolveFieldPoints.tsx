@@ -8,87 +8,148 @@ import { buildFieldNodes } from './resolveFieldGeometry'
 interface ResolveFieldPointsProps {
   colorStatic: string
   colorSignal: string
-  targetResolveRef: MutableRefObject<number>
+  colorBackground: string
   pointerEnabled: boolean
   containerRef: RefObject<HTMLDivElement | null>
 }
 
-// The minimum distance a node maintains from the cursor — not a bounded
-// nudge, a maintained gap: each frame the target displacement is whatever's
-// needed to hold the node exactly this far from the cursor's CURRENT
-// position, so the cursor can never "catch up" to a node regardless of how
-// fast it moves. The spring below only smooths how quickly the displayed
-// position converges to that target, not whether it's reached.
-const REPEL_RADIUS_FRACTION = 0.32
-const REPULSION_SPRING_RATE = 4.5
-// Connections are a live proximity graph, not a fixed topology — but
-// connecting every pair within range produces a dense, cluttered tangle
-// once several nodes drift close together (a busy area can have a dozen
-// nodes all mutually in range). Capping each node to its MAX_NEIGHBORS
-// nearest within CONNECT_RADIUS_FRACTION keeps the graph sparse and legible
-// regardless of local density — a node with five neighbors nearby still
-// only draws its closest couple, not all five.
-const CONNECT_RADIUS_FRACTION = 0.32
-const MAX_NEIGHBORS = 2
+// Field bounds extend this far beyond the viewport on every side (in
+// height-units — see the note above the useFrame body). MUST stay bigger
+// than CONNECT_SPACING_MULT's resulting connectRadius, or a node wrapping
+// around the edge would still be inside another node's connection radius
+// while off-screen, popping a line in/out of view. Verified for 160 nodes
+// across common aspect ratios: connectRadius lands between 0.14 and 0.24,
+// comfortably under this margin.
+const MARGIN = 0.3
 
-// Click "kick": an outward impulse that decays back. No rotation boost —
-// there's no rigid body to spin, see the wander note below.
-const KICK_DECAY = 2.2
-const KICK_PUSH_FRACTION = 0.14
+// connectRadius = mean node spacing * this. ~1.4x spacing means a node
+// typically has 2-3 others within range to choose neighbors from.
+const CONNECT_SPACING_MULT = 1.4
+const MAX_NEIGHBORS = 3
 
-// Arrival flash: a brief spark toward white when a node crosses halfway
-// from noise to resolved, so the assembly looks like it's clicking together.
-const FLASH_DECAY = 3.5
+// Ambient wander layered on top of straight-line drift, so paths curve
+// gently instead of looking like mechanical linear travel.
+const WANDER_SPEED = 0.004
 
-// Idle breathing — a slight scale pulse so the field is never fully static.
-const BREATH_SPEED = 0.5
-const BREATH_AMOUNT = 0.02
+// The cursor doesn't move nodes directly — it adds ACCELERATION to each
+// node's impulse velocity, which then decays slowly (REPEL below is a
+// radius, PUSH_ACCEL a rate). This is the entire difference from a
+// spring-back model: nothing ever pulls a node back toward where it was:
+// once pushed, it keeps coasting on its own momentum until the impulse
+// naturally bleeds off, then it's back to ambient drift, not "home."
+const REPEL_RADIUS = 0.22
+// High accel + a low speed cap is the combination that reads as "fast to
+// trigger, gentle once moving": a node reaches MAX_IMPULSE_SPEED in well
+// under half a second of full-strength contact regardless of what that cap
+// is, so keeping accel high and only lowering the cap preserves the snappy
+// reaction while making the resulting drift itself slow — the earlier
+// 1.7/0.5 pairing triggered fast but then moved fast too, reading as the
+// node "disappearing" within seconds.
+const PUSH_ACCEL = 0.5
+// Caps impulse speed so repeatedly hovering the same node can't launch it
+// off-screen — each additional push adds less once already near the cap.
+// At 0.14, a maxed-out node crosses one full screen height in ~7s.
+const MAX_IMPULSE_SPEED = 0.14
+// exp(-DAMPING_RATE * dt) each frame — frame-rate independent decay.
+// Halves in ~3.9s, ~10% remains at ~12.8s: long enough to clearly read as
+// "still floating from that push," short enough to settle back to ambient
+// drift well before the next interaction.
+const DAMPING_RATE = 0.18
+
+// Scroll parallax: scrolling shifts every node's Y by this fraction of the
+// scroll delta (in height-units), on top of whatever the physics sim is
+// already doing — a uniform translation, so relative spacing/connections
+// between nodes are unaffected. Uses the same wrap-at-bounds logic as
+// ordinary drift, so it never needs its own clamping over a long page.
+const SCROLL_PARALLAX_FACTOR = 0.35
+
+const POINT_SIZE = 5
+const POINT_OPACITY = 0.78
+const LINE_OPACITY = 0.22
+const FADE_IN_SEC = 1.2
 
 /**
- * A field of 60 nodes condensing from a scattered noise cloud toward random
- * anchors (static → signal, same progression as everywhere else on the
- * site) — no rigid rotation; each node wanders continuously around its own
- * anchor at its own frequency/phase, so the motion is per-node and
- * asynchronous rather than one shape spinning as a whole. The cursor
- * chases nearby nodes away (never letting it actually reach one — see
- * REPEL_RADIUS_FRACTION), a live proximity graph connects whichever nodes
- * happen to be close together, drawn in one consistent color, and a click
- * gives it a satisfying kick. Built on three.js's standard
- * PointsMaterial/LineBasicMaterial rather than a custom shader — with only
- * 60 nodes, the CPU cost of an all-pairs distance check per frame is
- * trivial, and standard materials are far easier to reason about precisely
- * than hand-written GLSL.
+ * A small solid-white circle on transparent, used as the point sprite's
+ * `map`. Without one, THREE.PointsMaterial draws every point as a
+ * hard-edged square (gl_PointSize just sizes a square in the vertex
+ * shader; nothing masks it into a circle without a texture or custom
+ * fragment shader) — a plain <canvas> circle is the standard way to get
+ * round points from the stock material rather than hand-written GLSL.
+ * White + vertexColors: true means the texture only contributes its alpha
+ * (the circular mask); the RGB stays whatever each point's own vertex
+ * color is.
+ */
+function createCircleSprite(): THREE.CanvasTexture {
+  const size = 64
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  ctx.beginPath()
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+  ctx.fillStyle = '#ffffff'
+  ctx.fill()
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.needsUpdate = true
+  return texture
+}
+
+/**
+ * The full-page background field: 160 nodes scattered across the whole
+ * viewport, drifting on constant ambient velocity plus gentle wander, with
+ * a live nearest-neighbor proximity graph connecting each node to its
+ * closest few. A cursor push adds momentum (not a position target) that
+ * decays slowly — nodes keep floating in the direction they were pushed
+ * long after the cursor moves away, never springing back. Built on
+ * three.js's standard PointsMaterial/LineBasicMaterial rather than a
+ * custom shader — at 160 nodes the O(n^2) neighbor search is well under a
+ * millisecond per frame, and standard materials are far easier to reason
+ * about precisely than hand-written GLSL.
  */
 export function ResolveFieldPoints({
   colorStatic,
   colorSignal,
-  targetResolveRef,
+  colorBackground,
   pointerEnabled,
   containerRef,
 }: ResolveFieldPointsProps) {
-  const { nodes } = useMemo(() => buildFieldNodes(), [])
-  const n = nodes.length
+  const {
+    count,
+    normX,
+    normY,
+    baseVelX,
+    baseVelY,
+    wanderFreqX,
+    wanderFreqY,
+    wanderPhaseX,
+    wanderPhaseY,
+    depth,
+    flickerFreq,
+    flickerPhase,
+  } = useMemo(() => buildFieldNodes(), [])
+  const n = count
 
   const colorStaticVec = useMemo(() => new THREE.Color(colorStatic), [colorStatic])
   const colorSignalVec = useMemo(() => new THREE.Color(colorSignal), [colorSignal])
-  const colorSparkVec = useMemo(() => new THREE.Color('#ffffff'), [])
+  const colorBackgroundVec = useMemo(() => new THREE.Color(colorBackground), [colorBackground])
+  const colorHotVec = useMemo(() => new THREE.Color('#ffffff'), [])
 
-  // Scratch buffers, reused every frame — no per-frame allocation.
+  // Live position/velocity state — mutated in place every frame, never
+  // reassigned, so this is stable across renders with no allocation.
+  const posX = useMemo(() => new Float32Array(n), [n])
+  const posY = useMemo(() => new Float32Array(n), [n])
+  const impulseVelX = useMemo(() => new Float32Array(n), [n])
+  const impulseVelY = useMemo(() => new Float32Array(n), [n])
   const currentPos = useMemo(() => new Float32Array(n * 3), [n])
-  const nodeResolve = useMemo(() => new Float32Array(n), [n])
-  const nodeResolvePrev = useMemo(() => new Float32Array(n), [n])
-  const nodeGlow = useMemo(() => new Float32Array(n), [n])
-  const nodeFlash = useMemo(() => new Float32Array(n), [n])
-  const nodeDisplaceX = useMemo(() => new Float32Array(n), [n])
-  const nodeDisplaceY = useMemo(() => new Float32Array(n), [n])
-  // Each node keeps at most its MAX_NEIGHBORS nearest, so there are at most
-  // n*MAX_NEIGHBORS edges — far fewer than the all-pairs worst case, and the
-  // real bound this buffer needs to be sized for.
+  // Each node's resting color (depth-based, theme-dependent) — computed
+  // once below, then blended toward a hot glow color per-frame near the
+  // cursor rather than recomputed from scratch every frame.
+  const baseColorR = useMemo(() => new Float32Array(n), [n])
+  const baseColorG = useMemo(() => new Float32Array(n), [n])
+  const baseColorB = useMemo(() => new Float32Array(n), [n])
+
   const maxEdges = n * MAX_NEIGHBORS
   const linePositions = useMemo(() => new Float32Array(maxEdges * 2 * 3), [maxEdges])
-  const lineColors = useMemo(() => new Float32Array(maxEdges * 2 * 3), [maxEdges])
-  // Scratch for the nearest-neighbor search — reset and rebuilt each frame,
-  // reused across frames (no per-frame array allocation).
   const nearestIdx = useMemo(() => new Int32Array(n * MAX_NEIGHBORS), [n])
   const nearestDist2 = useMemo(() => new Float32Array(n * MAX_NEIGHBORS), [n])
 
@@ -108,51 +169,62 @@ export function ResolveFieldPoints({
     const posAttr = new THREE.BufferAttribute(linePositions, 3)
     posAttr.setUsage(THREE.DynamicDrawUsage)
     geo.setAttribute('position', posAttr)
-    const colorAttr = new THREE.BufferAttribute(lineColors, 3)
-    colorAttr.setUsage(THREE.DynamicDrawUsage)
-    geo.setAttribute('color', colorAttr)
     geo.setDrawRange(0, 0)
     return geo
-  }, [linePositions, lineColors])
+  }, [linePositions])
+
+  const circleSprite = useMemo(() => createCircleSprite(), [])
 
   const pointsMaterial = useMemo(
     () =>
       new THREE.PointsMaterial({
-        size: 6,
+        map: circleSprite,
+        size: POINT_SIZE,
         sizeAttenuation: false,
         vertexColors: true,
         transparent: true,
-        opacity: 0.95,
-        blending: THREE.AdditiveBlending,
+        opacity: 0,
+        blending: THREE.NormalBlending,
         depthWrite: false,
       }),
-    [],
+    [circleSprite],
   )
 
   const linesMaterial = useMemo(
     () =>
       new THREE.LineBasicMaterial({
-        vertexColors: true,
+        color: colorStaticVec,
         transparent: true,
-        opacity: 0.45,
-        blending: THREE.AdditiveBlending,
+        opacity: 0,
+        blending: THREE.NormalBlending,
         depthWrite: false,
       }),
-    [],
+    [colorStaticVec],
   )
+
+  // Each node's RESTING color depends only on theme + its static depth —
+  // compute once into the scratch arrays here, not every frame. The frame
+  // loop below blends FROM this base color toward a hot glow color for
+  // whichever nodes are currently near the cursor, then writes the result
+  // into the GPU-backed buffer.
+  useEffect(() => {
+    for (let i = 0; i < n; i++) {
+      const t = depth[i]!
+      baseColorR[i] = THREE.MathUtils.lerp(colorBackgroundVec.r, colorSignalVec.r, t)
+      baseColorG[i] = THREE.MathUtils.lerp(colorBackgroundVec.g, colorSignalVec.g, t)
+      baseColorB[i] = THREE.MathUtils.lerp(colorBackgroundVec.b, colorSignalVec.b, t)
+    }
+  }, [n, depth, colorBackgroundVec, colorSignalVec, baseColorR, baseColorG, baseColorB])
 
   // Pointer tracked on `window`, not R3F's canvas-scoped pointer — the
   // canvas has pointer-events-none (so it never blocks clicks on real
   // content), and an element with pointer-events-none never receives its
   // own pointer events. NDC is computed against the scoped container's own
-  // bounding rect, NOT window dimensions — this canvas covers a small box
-  // around the portrait, not the full viewport, so window-relative NDC
-  // would put the ±1 range far outside where the cursor actually needs to
-  // be for the field to react.
+  // bounding rect — now the full viewport, since this is a fixed
+  // full-page background.
   const pointerNdc = useRef(new THREE.Vector2(0, 0))
   const pointerWorld = useRef(new THREE.Vector2(0, 0))
   const pointerActive = useRef(false)
-  const kickStrength = useRef(0)
 
   useEffect(() => {
     if (!pointerEnabled) return
@@ -168,166 +240,191 @@ export function ResolveFieldPoints({
     const onLeave = () => {
       pointerActive.current = false
     }
-    const onClick = () => {
-      kickStrength.current = 1
-    }
     window.addEventListener('pointermove', onMove, { passive: true })
     window.addEventListener('pointerleave', onLeave, { passive: true })
-    window.addEventListener('click', onClick, { passive: true })
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerleave', onLeave)
-      window.removeEventListener('click', onClick)
     }
   }, [pointerEnabled])
 
-  const globalResolveRef = useRef(0)
+  // Scroll tracked the same way as pointer — a ref written in a passive
+  // listener, read once per frame, never setState (scroll fires far too
+  // often for that). The frame loop below only needs the delta between
+  // frames, so this just needs to hold the latest raw scrollY.
+  const scrollY = useRef(0)
+  useEffect(() => {
+    scrollY.current = window.scrollY
+    const onScroll = () => {
+      scrollY.current = window.scrollY
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   const elapsed = useRef(0)
+  const fade = useRef(0)
+  const initialized = useRef(false)
+  const prevFieldHalfW = useRef(0)
+  const prevScrollY = useRef(0)
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05)
     elapsed.current += dt
+    fade.current = Math.min(1, fade.current + dt / FADE_IN_SEC)
 
-    globalResolveRef.current = THREE.MathUtils.lerp(
-      globalResolveRef.current,
-      targetResolveRef.current,
-      Math.min(dt * 2.4, 1),
-    )
-    const resolve = globalResolveRef.current
+    const aspect = state.viewport.width / state.viewport.height
+    const fieldHalfW = aspect / 2 + MARGIN
+    const fieldHalfH = 0.5 + MARGIN
 
-    kickStrength.current = Math.max(0, kickStrength.current - dt * KICK_DECAY)
+    if (!initialized.current) {
+      for (let i = 0; i < n; i++) {
+        posX[i] = normX[i]! * fieldHalfW
+        posY[i] = normY[i]! * fieldHalfH
+      }
+      initialized.current = true
+      prevFieldHalfW.current = fieldHalfW
+      prevScrollY.current = scrollY.current
+    } else if (fieldHalfW !== prevFieldHalfW.current) {
+      // Resize/aspect change — rescale so nodes stay evenly spread rather
+      // than leaving empty bands that ambient drift would take minutes to
+      // refill.
+      const k = fieldHalfW / prevFieldHalfW.current
+      for (let i = 0; i < n; i++) posX[i]! *= k
+      prevFieldHalfW.current = fieldHalfW
+    }
 
-    const vw = state.viewport.width / 2
-    const vh = state.viewport.height / 2
-    const breath = 1 + Math.sin(elapsed.current * BREATH_SPEED) * BREATH_AMOUNT
-    // vw/vh are now derived from the SCOPED canvas's own small size (the
-    // container wraps the portrait with -20% inset, not the full viewport),
-    // so a hero-like fraction of that box is correct again — it's sized
-    // relative to its own (portrait-scale) container, not the whole screen.
-    const scale = Math.min(vw, vh) * 0.8 * breath
+    const fieldArea = fieldHalfW * 2 * (fieldHalfH * 2)
+    const spacing = Math.sqrt(fieldArea / n)
+    const connectRadius = spacing * CONNECT_SPACING_MULT
+
+    // Scroll parallax: convert the raw pixel delta since last frame into
+    // height-units (window.innerHeight, real CSS pixels — NOT
+    // state.viewport.height, which is Three.js world units at the camera
+    // plane, a different scale). +Y is up in this space (matches the
+    // pointer NDC convention below), and scrolling down increases
+    // window.scrollY while page content visually moves up — so nodes
+    // shift by +scrollDelta to drift the same apparent direction as the
+    // content scrolling past them.
+    const scrollDeltaHeightUnits = (scrollY.current - prevScrollY.current) / window.innerHeight
+    prevScrollY.current = scrollY.current
+    const scrollShiftY = scrollDeltaHeightUnits * SCROLL_PARALLAX_FACTOR
 
     if (pointerEnabled && pointerActive.current) {
-      const targetX = pointerNdc.current.x * vw
-      const targetY = pointerNdc.current.y * vh
-      const follow = Math.min(dt * 6, 1)
-      pointerWorld.current.x = THREE.MathUtils.lerp(pointerWorld.current.x, targetX, follow)
-      pointerWorld.current.y = THREE.MathUtils.lerp(pointerWorld.current.y, targetY, follow)
+      pointerWorld.current.x = pointerNdc.current.x * fieldHalfW
+      pointerWorld.current.y = pointerNdc.current.y * fieldHalfH
     }
+    const pointerX = pointerWorld.current.x
+    const pointerY = pointerWorld.current.y
 
-    const repelRadius = Math.min(vw, vh) * REPEL_RADIUS_FRACTION
-    const connectRadius = scale * CONNECT_RADIUS_FRACTION
-
-    // 1) Resolve each node's position + how "signal" (vs "noise") it is.
-    for (let i = 0; i < n; i++) {
-      const node = nodes[i]!
-      const d = node.delay * 0.5
-      const local = THREE.MathUtils.clamp((resolve - d) / Math.max(1 - d, 0.0001), 0, 1)
-      const eased = local * local * (3 - 2 * local)
-      nodeResolve[i] = eased
-
-      // Arrival flash fires once, the moment a node crosses the halfway mark.
-      if (nodeResolvePrev[i]! < 0.5 && eased >= 0.5) {
-        nodeFlash[i] = 1
-      }
-      nodeResolvePrev[i] = eased
-      nodeFlash[i] = Math.max(0, nodeFlash[i]! - dt * FLASH_DECAY)
-
-      const bx = THREE.MathUtils.lerp(node.noise.x, node.lattice.x, eased)
-      const by = THREE.MathUtils.lerp(node.noise.y, node.lattice.y, eased)
-      const bz = THREE.MathUtils.lerp(node.noise.z, node.lattice.z, eased)
-
-      // Independent wander: each node drifts around its own position at its
-      // own frequency and phase (both randomized per node at construction) —
-      // asynchronous per-node motion, never a rigid body moving as one.
-      const wx = bx + Math.sin(elapsed.current * node.wanderFreq.x + node.wanderPhase.x) * node.wanderAmplitude
-      const wy = by + Math.sin(elapsed.current * node.wanderFreq.y + node.wanderPhase.y) * node.wanderAmplitude
-      const wz = bz + Math.sin(elapsed.current * node.wanderFreq.z + node.wanderPhase.z) * node.wanderAmplitude
-
-      let x = wx * scale
-      let y = wy * scale
-      const z = wz * scale
-
-      // Chase-away repulsion: the TARGET displacement is whatever's needed
-      // to hold this node exactly repelRadius from the cursor's CURRENT
-      // position — not a bounded nudge, so the cursor can never close the
-      // gap no matter how it moves. The spring below only smooths how fast
-      // the DISPLAYED position converges to that target, never the target
-      // itself, which is why this reads as smooth rather than snappy.
-      let glow = 0
-      let targetDx = 0
-      let targetDy = 0
-      if (pointerEnabled && pointerActive.current) {
-        const dx = x - pointerWorld.current.x
-        const dy = y - pointerWorld.current.y
-        const dist = Math.sqrt(dx * dx + dy * dy)
-        if (dist < repelRadius) {
-          const nx = dist > 0.0001 ? dx / dist : 1
-          const ny = dist > 0.0001 ? dy / dist : 0
-          const targetX = pointerWorld.current.x + nx * repelRadius
-          const targetY = pointerWorld.current.y + ny * repelRadius
-          targetDx = targetX - x
-          targetDy = targetY - y
-          glow = (1 - dist / repelRadius) * eased
-        }
-      }
-      const springT = Math.min(dt * REPULSION_SPRING_RATE, 1)
-      nodeDisplaceX[i] = THREE.MathUtils.lerp(nodeDisplaceX[i]!, targetDx, springT)
-      nodeDisplaceY[i] = THREE.MathUtils.lerp(nodeDisplaceY[i]!, targetDy, springT)
-      x += nodeDisplaceX[i]!
-      y += nodeDisplaceY[i]!
-
-      // Kick impulse: radial outward push from center, decaying back.
-      if (kickStrength.current > 0.001) {
-        const distFromCenter = Math.sqrt(x * x + y * y) || 1
-        const push = kickStrength.current * KICK_PUSH_FRACTION * scale
-        x += (x / distFromCenter) * push
-        y += (y / distFromCenter) * push
-      }
-
-      nodeGlow[i] = glow
-      currentPos[i * 3 + 0] = x
-      currentPos[i * 3 + 1] = y
-      currentPos[i * 3 + 2] = z
-    }
-
-    // 2) Node colors: gray → amber with resolve, boosted near the cursor,
-    // spiked toward white on arrival flash.
+    const heightPx = state.viewport.height
+    const damp = Math.exp(-DAMPING_RATE * dt)
     const pointColorAttr = pointsGeometry.getAttribute('color') as THREE.BufferAttribute
     const pointColorArr = pointColorAttr.array as Float32Array
-    for (let i = 0; i < n; i++) {
-      const mixAmount = THREE.MathUtils.clamp(nodeResolve[i]! + nodeGlow[i]! * 0.6, 0, 1)
-      const flash = nodeFlash[i]!
-      const r = THREE.MathUtils.lerp(THREE.MathUtils.lerp(colorStaticVec.r, colorSignalVec.r, mixAmount), colorSparkVec.r, flash)
-      const g = THREE.MathUtils.lerp(THREE.MathUtils.lerp(colorStaticVec.g, colorSignalVec.g, mixAmount), colorSparkVec.g, flash)
-      const b = THREE.MathUtils.lerp(THREE.MathUtils.lerp(colorStaticVec.b, colorSignalVec.b, mixAmount), colorSparkVec.b, flash)
-      pointColorArr[i * 3 + 0] = r
-      pointColorArr[i * 3 + 1] = g
-      pointColorArr[i * 3 + 2] = b
-    }
-    pointColorAttr.needsUpdate = true
-    ;(pointsGeometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true
 
-    // 3) Connections: each node's MAX_NEIGHBORS nearest within connectRadius
-    // — not every pair in range, which is what produced a dense tangle once
-    // several nodes drifted close together. One consistent color, no
-    // per-edge variation.
+    for (let i = 0; i < n; i++) {
+      // 1) Cursor impulse — an acceleration added to this node's own
+      // velocity, not a target position. Nothing here ever pulls a node
+      // back toward where it started. The same falloff also drives this
+      // node's glow heat below — reusing the distance already computed
+      // here rather than a second pass over all nodes.
+      let heat = 0
+      if (pointerEnabled && pointerActive.current) {
+        const dx = posX[i]! - pointerX
+        const dy = posY[i]! - pointerY
+        const dist = Math.hypot(dx, dy)
+        if (dist < REPEL_RADIUS && dist > 1e-5) {
+          const t = 1 - dist / REPEL_RADIUS
+          // sqrt, not smoothstep: rises fast and stays strong across most of
+          // the radius instead of only near-full-strength right at the
+          // cursor — smoothstep's slow start read as a sluggish trigger.
+          const falloff = Math.sqrt(t)
+          impulseVelX[i]! += (dx / dist) * PUSH_ACCEL * falloff * dt
+          impulseVelY[i]! += (dy / dist) * PUSH_ACCEL * falloff * dt
+
+          // Glowing flame: a fast per-node flicker (own frequency/phase, so
+          // nearby glowing nodes don't pulse in lockstep) modulating the
+          // same proximity falloff — never fully dark within the radius.
+          const flicker = 0.6 + 0.4 * Math.sin(elapsed.current * flickerFreq[i]! + flickerPhase[i]!)
+          heat = falloff * flicker
+        }
+      }
+
+      // Color: base (depth/theme) -> warm toward the accent as heat rises
+      // -> a hot white core only at the strongest, closest/brightest-flicker
+      // moments. Same two-stage lerp idiom as the arrival-flash effect this
+      // file used to have, just driven by cursor proximity instead of a
+      // one-shot resolve event.
+      const toAccent = Math.min(1, heat * 1.3)
+      const toWhite = heat * heat
+      const cr = THREE.MathUtils.lerp(baseColorR[i]!, colorSignalVec.r, toAccent)
+      const cg = THREE.MathUtils.lerp(baseColorG[i]!, colorSignalVec.g, toAccent)
+      const cb = THREE.MathUtils.lerp(baseColorB[i]!, colorSignalVec.b, toAccent)
+      pointColorArr[i * 3 + 0] = THREE.MathUtils.lerp(cr, colorHotVec.r, toWhite)
+      pointColorArr[i * 3 + 1] = THREE.MathUtils.lerp(cg, colorHotVec.g, toWhite)
+      pointColorArr[i * 3 + 2] = THREE.MathUtils.lerp(cb, colorHotVec.b, toWhite)
+
+      // 2) Cap impulse speed so repeated hovering can't fling a node
+      // off-screen — each further push adds progressively less once near cap.
+      const impulseSpeed = Math.hypot(impulseVelX[i]!, impulseVelY[i]!)
+      if (impulseSpeed > MAX_IMPULSE_SPEED) {
+        const k = MAX_IMPULSE_SPEED / impulseSpeed
+        impulseVelX[i]! *= k
+        impulseVelY[i]! *= k
+      }
+
+      // 3) Total velocity = constant ambient drift (never damped) +
+      // damped cursor impulse + gentle wander. Splitting drift from
+      // impulse is what makes "antigravity" work: a single damped
+      // velocity would eventually go dead and motionless; keeping drift
+      // undamped means the field is always gently alive, while a cursor
+      // push adds momentum on top that fades on its own schedule.
+      const wx = Math.sin(elapsed.current * wanderFreqX[i]! + wanderPhaseX[i]!) * WANDER_SPEED
+      const wy = Math.sin(elapsed.current * wanderFreqY[i]! + wanderPhaseY[i]!) * WANDER_SPEED
+      posX[i]! += (baseVelX[i]! + impulseVelX[i]! + wx) * dt
+      posY[i]! += (baseVelY[i]! + impulseVelY[i]! + wy) * dt
+      // 3b) Scroll parallax — a uniform shift, same for every node, so it
+      // never disturbs relative spacing/connections between them.
+      posY[i]! += scrollShiftY
+
+      // 4) Impulse decays; ambient drift and wander do not.
+      impulseVelX[i]! *= damp
+      impulseVelY[i]! *= damp
+
+      // 5) Wrap at the field bounds (well outside the viewport — see
+      // MARGIN — so wrapping is never visible).
+      if (posX[i]! > fieldHalfW) posX[i]! -= fieldHalfW * 2
+      else if (posX[i]! < -fieldHalfW) posX[i]! += fieldHalfW * 2
+      if (posY[i]! > fieldHalfH) posY[i]! -= fieldHalfH * 2
+      else if (posY[i]! < -fieldHalfH) posY[i]! += fieldHalfH * 2
+
+      currentPos[i * 3 + 0] = posX[i]! * heightPx
+      currentPos[i * 3 + 1] = posY[i]! * heightPx
+      currentPos[i * 3 + 2] = 0
+    }
+
+    ;(pointsGeometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true
+    pointColorAttr.needsUpdate = true
+
+    // Connections: each node's MAX_NEIGHBORS nearest within connectRadius —
+    // not every pair in range, which produces a dense tangle once several
+    // nodes drift close together. One consistent color, no per-edge
+    // brightness variation.
     const connRadius2 = connectRadius * connectRadius
     nearestIdx.fill(-1)
     nearestDist2.fill(Infinity)
 
-    // Pass 1: for every node, keep only its closest MAX_NEIGHBORS candidates
-    // (insertion-sort into a tiny fixed-size slot — cheap since MAX_NEIGHBORS
-    // is small, and avoids allocating a sortable array per node).
+    // Pass 1: keep each node's closest MAX_NEIGHBORS candidates (tiny
+    // fixed-size insertion sort — cheap since MAX_NEIGHBORS is small, and
+    // avoids allocating a sortable array per node).
     for (let i = 0; i < n; i++) {
-      const xi = currentPos[i * 3 + 0]!
-      const yi = currentPos[i * 3 + 1]!
-      const zi = currentPos[i * 3 + 2]!
+      const xi = posX[i]!
+      const yi = posY[i]!
       for (let j = 0; j < n; j++) {
         if (j === i) continue
-        const dx = xi - currentPos[j * 3 + 0]!
-        const dy = yi - currentPos[j * 3 + 1]!
-        const dz = zi - currentPos[j * 3 + 2]!
-        const d2 = dx * dx + dy * dy + dz * dz
+        const dx = xi - posX[j]!
+        const dy = yi - posY[j]!
+        const d2 = dx * dx + dy * dy
         if (d2 >= connRadius2) continue
 
         const rowBase = i * MAX_NEIGHBORS
@@ -348,9 +445,9 @@ export function ResolveFieldPoints({
       }
     }
 
-    // Pass 2: draw an edge for every pair where EITHER side kept the other
-    // as one of its nearest — a mutual-AND requirement produces a much
-    // sparser, often visually disconnected graph at this node count.
+    // Pass 2: draw an edge wherever EITHER side kept the other as one of
+    // its nearest (a mutual-AND requirement produces a much sparser, often
+    // visually disconnected graph at this node count).
     let vertexCount = 0
     for (let i = 0; i < n && vertexCount < linePositions.length - 6; i++) {
       for (let j = i + 1; j < n; j++) {
@@ -366,25 +463,19 @@ export function ResolveFieldPoints({
         const base = vertexCount * 3
         linePositions[base + 0] = currentPos[i * 3 + 0]!
         linePositions[base + 1] = currentPos[i * 3 + 1]!
-        linePositions[base + 2] = currentPos[i * 3 + 2]!
-        lineColors[base + 0] = colorSignalVec.r
-        lineColors[base + 1] = colorSignalVec.g
-        lineColors[base + 2] = colorSignalVec.b
-
+        linePositions[base + 2] = 0
         linePositions[base + 3] = currentPos[j * 3 + 0]!
         linePositions[base + 4] = currentPos[j * 3 + 1]!
-        linePositions[base + 5] = currentPos[j * 3 + 2]!
-        lineColors[base + 3] = colorSignalVec.r
-        lineColors[base + 4] = colorSignalVec.g
-        lineColors[base + 5] = colorSignalVec.b
-
+        linePositions[base + 5] = 0
         vertexCount += 2
       }
     }
 
     ;(linesGeometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true
-    ;(linesGeometry.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true
     linesGeometry.setDrawRange(0, vertexCount)
+
+    pointsMaterial.opacity = POINT_OPACITY * fade.current
+    linesMaterial.opacity = LINE_OPACITY * fade.current
   })
 
   return (

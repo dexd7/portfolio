@@ -37,5 +37,5 @@ export function useThemeColors() {
   }, [])
 
   const palette = colors[theme]
-  return { colorStatic: palette.static, colorSignal: palette.signal }
+  return { colorStatic: palette.static, colorSignal: palette.signal, colorBackground: palette.ink950 }
 }

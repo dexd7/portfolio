@@ -13,28 +13,33 @@ interface NetworkInformationLike {
 }
 
 /**
- * The field of nodes, scoped to the portrait — NOT a full-page layer.
- * `position: absolute` inside the portrait's own `relative` wrapper
- * (mounted from within PortraitStage.tsx, inside its transformed imgWrap),
- * so it scrolls naturally with the page and flies up/out together with the
- * photo instead of staying pinned across unrelated sections. Sits IN FRONT
- * of the portrait image (z-10), `pointer-events-none` throughout so it
- * never blocks clicks on real content. Renders the static HeroMotif poster
- * immediately and always; swaps in the real GL scene once idle time is
- * available, unless reduced-motion or Save-Data is on.
+ * The full-page background field — `position: fixed`, a direct child of
+ * `<main>` in app/page.tsx (the homepage only). `pointer-events-none`
+ * throughout so it never blocks clicks on real content, and a NEGATIVE
+ * z-index (-z-10) so it paints below in-flow page content but above the
+ * root canvas background — see the load-bearing comment on the wrapper div
+ * below before changing either of those.
+ *
+ * MUST NOT be nested inside anything with `transform`/`will-change`
+ * (a <Resolve>, a <Section>, the portrait's transformed wrapper) — per CSS,
+ * such an ancestor becomes the containing block for a `fixed` descendant,
+ * silently breaking full-viewport positioning. This component used to live
+ * inside PortraitStage.tsx for exactly this reason it no longer can.
+ *
+ * Renders the static HeroMotif poster immediately and always; swaps in the
+ * real GL scene once idle time is available, unless reduced-motion or
+ * Save-Data is on, in which case it stays on the poster permanently.
  */
 export function ResolveField() {
   const containerRef = useRef<HTMLDivElement>(null)
   const reducedMotion = useReducedMotion()
-  const { colorStatic, colorSignal } = useThemeColors()
+  const { colorStatic, colorSignal, colorBackground } = useThemeColors()
 
   const [ready, setReady] = useState(false)
   const [visible, setVisible] = useState(true)
   const [skip, setSkip] = useState(false)
   const [dpr, setDpr] = useState(1)
   const [pointerEnabled, setPointerEnabled] = useState(false)
-  // NOT React state — the R3F render loop reads this once per frame.
-  const scrollTargetRef = useRef(0)
 
   // Decide whether to load GL at all, once reduced-motion is known.
   useEffect(() => {
@@ -53,52 +58,28 @@ export function ResolveField() {
     return () => cancelIdle(id as never)
   }, [reducedMotion])
 
-  // Pause the render loop when scrolled out of view — meaningful again now
-  // that this is `absolute`, not `fixed`: it actually moves in and out of
-  // the viewport as the page scrolls.
+  // Pause the render loop when the tab is backgrounded. An IntersectionObserver
+  // would be meaningless here — a `fixed inset-0` element always intersects
+  // the viewport by definition, so tab-hidden is the real signal now.
   useEffect(() => {
     if (skip) return
-    const node = containerRef.current
-    if (!node || typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry?.isIntersecting ?? true), { threshold: 0 })
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [skip])
-
-  // Resolve from noise into the field's real shape as the portrait scrolls
-  // into view, dissolve back as it leaves — ref only, no setState, so
-  // scrolling never re-renders this tree.
-  useEffect(() => {
-    if (skip) return
-    const onScroll = () => {
-      const node = containerRef.current
-      if (!node) return
-      const rect = node.getBoundingClientRect()
-      const vh = window.innerHeight
-      const visibleTop = Math.min(rect.bottom, vh)
-      const visibleBottom = Math.max(rect.top, 0)
-      const visibleHeight = Math.max(0, visibleTop - visibleBottom)
-      scrollTargetRef.current = Math.max(0, Math.min(1, visibleHeight / Math.min(rect.height, vh)))
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll, { passive: true })
-    onScroll()
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-    }
+    const onVisibility = () => setVisible(!document.hidden)
+    document.addEventListener('visibilitychange', onVisibility)
+    onVisibility()
+    return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [skip])
 
   return (
     <div
       ref={containerRef}
-      className="pointer-events-none absolute z-10"
-      // -26%, up from -20% — a bigger bleed around the portrait so the
-      // field's own silhouette clearly extends past the photo's edges on
-      // all sides (verified: same worst-case canvas-edge margin as before,
-      // even with a simultaneous max kick + max repulsion on one node —
-      // see ResolveFieldPoints.tsx's KICK_PUSH_FRACTION/REPEL_RADIUS_FRACTION).
-      style={{ inset: '-26%' }}
+      // fixed + -z-10: paints below in-flow content but above the root
+      // canvas background (negative z-index positioned elements sit in a
+      // separate, earlier CSS painting-order step than normal-flow block
+      // content). Section/Footer paint no background of their own, so
+      // nothing needs a z-index bump to sit above this. Do not wrap this
+      // component in anything with transform/will-change — see the file
+      // doc comment.
+      className="pointer-events-none fixed inset-0 -z-10"
       aria-hidden="true"
       role="presentation"
     >
@@ -108,8 +89,8 @@ export function ResolveField() {
           dpr={dpr}
           colorStatic={colorStatic}
           colorSignal={colorSignal}
+          colorBackground={colorBackground}
           pointerEnabled={pointerEnabled}
-          resolveTargetRef={scrollTargetRef}
           active={visible}
           containerRef={containerRef}
         />

@@ -1,19 +1,18 @@
 'use client'
 
 import { Canvas } from '@react-three/fiber'
-import { useState, type MutableRefObject, type RefObject } from 'react'
+import { useState, type RefObject } from 'react'
 import { ResolveFieldPoints } from './ResolveFieldPoints'
 
 interface ResolveFieldCanvasProps {
   dpr: number
   colorStatic: string
   colorSignal: string
+  colorBackground: string
   pointerEnabled: boolean
-  /** Ref, not a value prop — scroll updates it directly so this never re-renders on scroll. */
-  resolveTargetRef: MutableRefObject<number>
-  /** Pauses the render loop entirely when scrolled out of view. */
+  /** Pauses the render loop entirely when the tab is backgrounded. */
   active: boolean
-  /** The scoped wrapper's own DOM node — pointer NDC is computed against ITS bounding rect, not the window, now that this canvas doesn't cover the full viewport. */
+  /** The full-viewport wrapper's own DOM node — pointer NDC is computed against ITS bounding rect. */
   containerRef: RefObject<HTMLDivElement | null>
 }
 
@@ -34,8 +33,8 @@ export default function ResolveFieldCanvas({
   dpr,
   colorStatic,
   colorSignal,
+  colorBackground,
   pointerEnabled,
-  resolveTargetRef,
   active,
   containerRef,
 }: ResolveFieldCanvasProps) {
@@ -55,9 +54,9 @@ export default function ResolveFieldCanvas({
       gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
       style={{ position: 'absolute', inset: 0 }}
       onCreated={({ gl }) => {
-        // Transparent — this now sits as a foreground layer over the whole
-        // page, not an opaque hero backdrop, so whatever's behind it must
-        // show through.
+        // Transparent — this is a full-page background layer behind real
+        // content, not an opaque backdrop, so the page's own canvas color
+        // (painted by <body>) must show through everywhere nothing is drawn.
         gl.setClearColor(0x000000, 0)
 
         const canvas = gl.domElement
@@ -73,7 +72,7 @@ export default function ResolveFieldCanvas({
       <ResolveFieldPoints
         colorStatic={colorStatic}
         colorSignal={colorSignal}
-        targetResolveRef={resolveTargetRef}
+        colorBackground={colorBackground}
         pointerEnabled={pointerEnabled}
         containerRef={containerRef}
       />

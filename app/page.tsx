@@ -9,12 +9,17 @@ import { Signals } from '@/components/sections/Signals'
 import { Contact } from '@/components/sections/Contact'
 import { CrossHighlightProvider } from '@/components/sections/CrossHighlight'
 import { Button } from '@/components/ui/Button'
+import { ResolveField } from '@/components/visual/ResolveField'
 import { formatEduRange } from '@/lib/utils'
 
 export default function HomePage() {
   return (
     <CrossHighlightProvider>
       <main id="main" style={{ paddingTop: '56px' }}>
+        {/* Direct child of <main>, not nested in Section/Resolve/PortraitStage
+            — see the doc comment in ResolveField.tsx for why nesting inside
+            a transformed ancestor would break its position:fixed. */}
+        <ResolveField />
         <Section wide>
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_540px] lg:items-start">
             <div>
@@ -46,8 +51,8 @@ export default function HomePage() {
                 </Resolve>
                 <Resolve index={4}>
                   <p className="text-[1.3rem] leading-[1.65] text-[var(--color-text-secondary)]">
-                    I'm finishing my CS + Data Science degree at UW–Madison in May 2026, and looking for full-stack or
-                    backend roles starting this year. Open to relocating.
+                    I graduated with my CS + Data Science degree from UW–Madison in May 2026, and I'm looking for
+                    full-stack or backend roles now. Open to relocating.
                   </p>
                 </Resolve>
               </div>

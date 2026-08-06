@@ -12,7 +12,7 @@ export const site: SiteConfig = {
   // `{noise}` and `{signal}` are colored by <Thesis>. Keep both markers.
   thesis: 'I build systems that turn {noise} into {signal}.',
   intro:
-    'Python, FastAPI, React. UW–Madison CS + Data Science, 2026. Currently looking for full-stack and backend roles.',
+    'Python, FastAPI, React. UW–Madison CS + Data Science, 2026 grad. Currently looking for full-stack and backend roles.',
 
   location: 'Madison, Wisconsin',
   timezone: 'America/Chicago',

@@ -1,9 +1,9 @@
 import { NowSchema, type Now } from './schema'
 
 export const now: Now = {
-  updated: '2026-07-30',
+  updated: '2026-08-06',
   items: [
-    { label: 'Studying', value: 'CS + Data Science, senior year — UW–Madison' },
+    { label: 'Graduated', value: 'B.S. CS + Data Science — UW–Madison, May 2026' },
     { label: 'Looking for', value: 'Full-stack / backend roles, 2026 start' },
     { label: 'Building', value: 'This site, and packaging past projects for GitHub' },
     { label: 'Based in', value: 'Madison, WI — open to relocating' },
