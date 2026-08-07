@@ -1,6 +1,6 @@
 # Portfolio Website
 
-Personal site for Vihaan Sarin, built with Next.js 15 and TypeScript. Not a template pulled off the shelf and skinned, everything from the motion system to the content model was built from scratch for this project.
+Personal site for [Vihaan Sarin](https://vihaansarin.com/) (wanted to make it for a while), built with Next.js 15 and TypeScript. Not a template pulled off the shelf and skinned, everything from the motion system to the content model was built from scratch for this project.
 
 Live thesis of the site: "I build systems that turn noise into signal." The whole design language tries to back that up, a WebGL particle field on the homepage that behaves like signal resolving out of noise, and a shared "Resolve" animation primitive used everywhere content enters the screen.
 
