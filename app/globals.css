@@ -299,7 +299,7 @@ body {
 .activity-card {
   background: #0d1117;
   border: 1px solid #30363d;
-  border-radius: var(--radius-soft);
+  border-radius: 6px;
 }
 
 .magnetic {
