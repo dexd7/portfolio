@@ -293,41 +293,13 @@ body {
   }
 }
 
-/* Accountability page — the one place on the site that deliberately breaks
-   from the calm palette. It's styled as a bomb-defusal console (LED status
-   tiles, a blinking readout) since the whole point of the page is to feel
-   like something ticking against you if you go quiet. Colors here are local
-   to this page, not sitewide tokens — they encode danger/warn/safe, a
-   concept the rest of the site has no use for. */
-.bomb-console {
-  --bomb-safe: #22c55e;
-  --bomb-warn: #f59e0b;
-  --bomb-danger: #ef4444;
-  background: #0a0a0a;
-  border: 1px solid color-mix(in srgb, var(--bomb-danger) 35%, transparent);
-}
-
-.bomb-led {
-  font-family: var(--font-mono);
-  text-shadow: 0 0 10px currentColor, 0 0 22px currentColor;
-}
-
-@keyframes bomb-blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.25;
-  }
-}
-.bomb-armed {
-  animation: bomb-blink 1s step-end infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .bomb-armed {
-    animation: none;
-  }
+/* Accountability page — two widgets styled to match their source platforms
+   (GitHub's and NeetCode's own dark contribution calendars) rather than the
+   site's usual palette, since the point is to look like the real thing. */
+.activity-card {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: var(--radius-soft);
 }
 
 .magnetic {

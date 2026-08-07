@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Section } from '@/components/layout/Section'
 import { ContributionStrip } from '@/components/accountability/ContributionStrip'
+import { NeetcodeHeatmap } from '@/components/accountability/NeetcodeHeatmap'
 import { getRecentContributions } from '@/lib/github'
 
 export const metadata: Metadata = {
@@ -26,16 +27,14 @@ export default async function AccountabilityPage() {
         {contributions ? (
           <ContributionStrip days={contributions} />
         ) : (
-          <div className="bomb-console p-8 text-center">
-            <p className="bomb-led text-body text-[var(--bomb-warn)]">GitHub not connected</p>
+          <div className="activity-card p-8 text-center">
+            <p className="text-body text-[#7d8590]">GitHub not connected</p>
           </div>
         )}
       </Section>
 
       <Section index={2} label="NEETCODE — LAST 12 MONTHS">
-        <div className="bomb-console flex items-center justify-center border-dashed p-8 text-center">
-          <p className="bomb-led text-body text-[var(--bomb-warn)] opacity-70">Awaiting connection</p>
-        </div>
+        <NeetcodeHeatmap />
       </Section>
     </main>
   )

@@ -1,88 +1,46 @@
 import type { ContributionDay } from '@/lib/github'
-import { cn } from '@/lib/utils'
+import { LEVEL_COLOR, levelForCount } from '@/lib/calendarHeatmap'
 
 const DAY_LABEL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-type Status = 'danger' | 'warn' | 'safe'
-
-function statusFor(count: number): Status {
-  if (count === 0) return 'danger'
-  if (count <= 2) return 'warn'
-  return 'safe'
-}
-
-const STATUS_COLOR: Record<Status, string> = {
-  danger: 'var(--bomb-danger)',
-  warn: 'var(--bomb-warn)',
-  safe: 'var(--bomb-safe)',
-}
-
-/** Trailing zero-count days, counted back from today. `null` if the whole window is dark — the fuse has been unlit longer than this page can see. */
-function daysSinceLastCommit(days: ContributionDay[]): number | null {
-  for (let i = days.length - 1; i >= 0; i--) {
-    if ((days[i]?.count ?? 0) > 0) return days.length - 1 - i
-  }
-  return null
-}
 
 interface ContributionStripProps {
   days: ContributionDay[]
 }
 
-/**
- * Styled as a bomb-defusal console — see the .bomb-console doc comment in
- * globals.css for why this page breaks from the site's usual palette. The
- * "days since last push" readout is the actual point: 0 reads as defused
- * (steady green), anything above 0 reads as armed and blinks red, getting
- * more alarming the longer it's been.
- */
+/** GitHub's own contribution-calendar square/color language, just a 7-day-wide slice of it instead of the full year grid. */
 export function ContributionStrip({ days }: ContributionStripProps) {
-  const sinceLastCommit = daysSinceLastCommit(days)
-  const armed = sinceLastCommit === null || sinceLastCommit > 0
   const total = days.reduce((sum, d) => sum + d.count, 0)
 
   return (
-    <div className="bomb-console p-6 sm:p-8">
-      <div className="flex flex-col items-center border-b border-[color-mix(in_srgb,var(--bomb-danger)_30%,transparent)] pb-6 text-center">
-        <span className="text-label text-[var(--bomb-danger)] opacity-70">Days since last push</span>
-        <span
-          className={cn('bomb-led mt-2 text-display-xl tabular-nums', armed && 'bomb-armed')}
-          style={{ color: armed ? 'var(--bomb-danger)' : 'var(--bomb-safe)' }}
-        >
-          {sinceLastCommit === null ? '7+' : sinceLastCommit}
-        </span>
-        <span className="text-caption mt-1 text-[color-mix(in_srgb,white_50%,transparent)]">
-          {armed ? 'ARMED — PUSH SOMETHING' : 'DEFUSED'}
-        </span>
-      </div>
-
-      <div className="mt-6 flex gap-2 sm:gap-3">
+    <div className="activity-card p-6">
+      <div className="flex gap-[3px] sm:gap-1">
         {days.map((day) => {
-          const status = statusFor(day.count)
-          const color = STATUS_COLOR[status]
           const date = new Date(`${day.date}T00:00:00`)
           return (
             <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
-              <span className="text-label text-[color-mix(in_srgb,white_45%,transparent)]">{DAY_LABEL[date.getDay()]}</span>
+              <span className="text-[11px] text-[#7d8590]">{DAY_LABEL[date.getDay()]}</span>
               <div
-                className={cn('aspect-square w-full rounded-sm', status === 'danger' && 'bomb-armed')}
-                style={{
-                  backgroundColor: color,
-                  boxShadow: `0 0 14px ${color}, 0 0 28px ${color}`,
-                }}
-                aria-hidden="true"
+                className="aspect-square w-full rounded-[2px]"
+                style={{ backgroundColor: LEVEL_COLOR[levelForCount(day.count)] }}
+                title={`${day.count} contribution${day.count === 1 ? '' : 's'} on ${day.date}`}
               />
-              <span className="bomb-led text-caption tabular-nums" style={{ color }}>
-                {day.count}
-              </span>
             </div>
           )
         })}
       </div>
 
-      <p className="text-caption mt-6 text-center text-[color-mix(in_srgb,white_45%,transparent)]">
-        <span className="bomb-led text-[var(--bomb-safe)]">{total}</span> contributions detected in the last {days.length} days
-      </p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#7d8590]">
+        <span>
+          {total} contribution{total === 1 ? '' : 's'} in the last {days.length} days
+        </span>
+        <span className="flex items-center gap-1">
+          Less
+          {LEVEL_COLOR.map((color) => (
+            <span key={color} className="h-[10px] w-[10px] rounded-[2px]" style={{ backgroundColor: color }} />
+          ))}
+          More
+        </span>
+      </div>
     </div>
   )
 }
