@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import type { Project } from '@/data/schema'
 import { useCrossHighlight } from '@/components/sections/CrossHighlight'
 import { useWorkAccordion } from '@/components/work/WorkAccordion'
@@ -40,6 +40,24 @@ export function WorkRow({ project, index, highlights, intro }: WorkRowProps) {
   const { expandedSlug, setExpandedSlug } = useWorkAccordion()
   const isOpen = expandedSlug === project.slug
   const direction = index % 2 === 0 ? 'left' : 'right'
+  const rowRef = useRef<HTMLDivElement>(null)
+
+  // Opening a row always re-anchors scroll to its own button, rather than
+  // leaving the viewport wherever it happened to be (often scrolled deep
+  // into whichever OTHER row's panel was previously open — see the
+  // scroll-jump comment on .accordion-panel in globals.css for why that
+  // used to strand people mid-scroll on the wrong content). rAF: wait one
+  // frame so the click's setExpandedSlug has committed and the previous
+  // panel's instant close has already happened before measuring/scrolling.
+  const handleToggle = () => {
+    const opening = !isOpen
+    setExpandedSlug(opening ? project.slug : null)
+    if (opening) {
+      requestAnimationFrame(() => {
+        rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    }
+  }
 
   const isDimmed =
     hovered !== null &&
@@ -58,11 +76,16 @@ export function WorkRow({ project, index, highlights, intro }: WorkRowProps) {
     // Forcing visible while open bypasses that; closed rows keep the
     // normal scroll-linked fade in/out.
     <Resolve index={index} direction={direction} visible={isOpen ? true : undefined}>
-      <div id={project.slug} className="border-t border-[var(--color-border)]" style={{ opacity: isDimmed ? 0.4 : 1 }}>
+      <div
+        ref={rowRef}
+        id={project.slug}
+        className="border-t border-[var(--color-border)]"
+        style={{ opacity: isDimmed ? 0.4 : 1 }}
+      >
         <button
           type="button"
           aria-expanded={isOpen}
-          onClick={() => setExpandedSlug(isOpen ? null : project.slug)}
+          onClick={handleToggle}
           onMouseEnter={() => setHovered({ kind: 'project', id: project.slug })}
           onMouseLeave={() => setHovered(null)}
           onFocus={() => setHovered({ kind: 'project', id: project.slug })}

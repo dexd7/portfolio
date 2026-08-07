@@ -261,21 +261,34 @@ body {
    height measurement, animates smoothly to the content's real height
    regardless of length. The inner .accordion-panel-inner's min-height: 0
    is load-bearing — without it a grid item defaults to its content's
-   intrinsic height and the row never actually collapses to 0fr. */
+   intrinsic height and the row never actually collapses to 0fr.
+   The transition lives ONLY on the [data-open='true'] rule, not the base
+   one — a CSS transition uses whichever rule is in effect on the state
+   being transitioned TO, so opening (0fr -> 1fr, landing on this rule)
+   animates, while closing (1fr -> 0fr, landing on the base rule with no
+   transition) snaps instantly. That asymmetry matters on a phone: only one
+   panel can be open at a time (WorkAccordion), so opening a different row
+   closes whichever one was already open — if that close animated too, the
+   previously-open row would spend the next ~900ms gradually shrinking
+   while the user is already scrolling into the newly-opened one, and a
+   tall panel collapsing above the viewport shifts everything below it
+   upward under a scroll position that doesn't move to compensate — which
+   reads as the new row's content "fast-forwarding" past where the user
+   expected to land. */
 .accordion-panel {
   display: grid;
   grid-template-rows: 0fr;
   overflow: hidden;
-  transition: grid-template-rows var(--duration-scene) var(--ease-settle);
 }
 .accordion-panel[data-open='true'] {
   grid-template-rows: 1fr;
+  transition: grid-template-rows var(--duration-scene) var(--ease-settle);
 }
 .accordion-panel-inner {
   min-height: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .accordion-panel {
+  .accordion-panel[data-open='true'] {
     transition-duration: var(--duration-micro);
   }
 }
