@@ -58,6 +58,7 @@ export const site: SiteConfig = {
   nav: [
     { label: 'Work', href: '/work' },
     { label: 'Résumé', href: '/resume' },
+    { label: 'Accountability', href: '/accountability' },
   ],
 
   seo: {
