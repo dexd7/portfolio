@@ -49,7 +49,15 @@ export function WorkRow({ project, index, highlights, intro }: WorkRowProps) {
     )
 
   return (
-    <Resolve index={index} direction={direction}>
+    // visible={isOpen ? true : undefined}: while the accordion is open the
+    // row's own bounding box includes the whole expanded panel, which can
+    // be much taller than the viewport on a phone — scrolling through the
+    // middle of it easily drops the visible fraction below the 25%
+    // threshold this Resolve normally re-hides at, fading the whole row
+    // (including its open content) to blur/offset/opacity-0 mid-scroll.
+    // Forcing visible while open bypasses that; closed rows keep the
+    // normal scroll-linked fade in/out.
+    <Resolve index={index} direction={direction} visible={isOpen ? true : undefined}>
       <div id={project.slug} className="border-t border-[var(--color-border)]" style={{ opacity: isDimmed ? 0.4 : 1 }}>
         <button
           type="button"
