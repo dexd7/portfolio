@@ -37,7 +37,7 @@ export default async function AccountabilityPage() {
                 <ContributionStrip days={contributions} />
               ) : (
                 <div className="activity-card p-8 text-center">
-                  <p className="text-body text-[#7d8590]">GitHub not connected</p>
+                  <p className="text-body text-[var(--color-text-dim)]">GitHub not connected</p>
                 </div>
               )}
             </Resolve>

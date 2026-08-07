@@ -293,12 +293,13 @@ body {
   }
 }
 
-/* Accountability page — two widgets styled to match their source platforms
-   (GitHub's and NeetCode's own dark contribution calendars) rather than the
-   site's usual palette, since the point is to look like the real thing. */
+/* Accountability page — grid layout borrowed from GitHub/NeetCode's own
+   contribution calendars, but recolored onto this site's own tokens (fill/
+   border/signal) rather than their hardcoded dark palette, so it reads as
+   part of the site instead of an embedded screenshot. */
 .activity-card {
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
 }
 

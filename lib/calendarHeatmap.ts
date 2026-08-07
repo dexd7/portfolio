@@ -9,8 +9,13 @@ export interface HeatmapWeek {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-/** GitHub's own dark-theme contribution scale — reused for the NeetCode grid too since it's the de facto convention for this kind of widget. */
-export const LEVEL_COLOR = ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353']
+/**
+ * Same 5-level intensity idea as GitHub/NeetCode's own calendars, but built
+ * from this site's own tokens (--color-fill for empty, --color-signal at
+ * increasing opacity for active days) instead of a hardcoded green ramp —
+ * so it re-themes automatically with light/dark mode like everything else.
+ */
+export const LEVEL_OPACITY = [0, 0.32, 0.52, 0.76, 1]
 
 export function levelForCount(count: number): number {
   if (count <= 0) return 0
