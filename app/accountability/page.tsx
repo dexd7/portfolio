@@ -19,14 +19,14 @@ export default async function AccountabilityPage() {
   return (
     <main id="main" style={{ paddingTop: '56px' }}>
       <Section index={0} label="ACCOUNTABILITY" compact>
-        <h1 className="text-display-l">Keeping score.</h1>
-        <p className="text-body mt-4 max-w-xl text-[var(--color-text-secondary)]">
-          This tab pulls straight from GitHub and NeetCode. No editing after the fact.
-        </p>
-      </Section>
+        <Resolve>
+          <h1 className="text-display-l">Keeping score.</h1>
+          <p className="text-body mt-4 max-w-xl text-[var(--color-text-secondary)]">
+            This tab pulls straight from GitHub and NeetCode. No editing after the fact.
+          </p>
+        </Resolve>
 
-      <Section compact>
-        <div className="space-y-10">
+        <div className="mt-12 space-y-10">
           <div>
             <p className="text-label mb-4 flex items-center gap-3 text-[var(--color-text-dim)]">
               <span className="text-[var(--color-signal)]">{pad2(1)}</span>
