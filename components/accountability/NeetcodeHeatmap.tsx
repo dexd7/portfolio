@@ -87,7 +87,7 @@ export function NeetcodeHeatmap() {
 
       <div className="text-caption mt-4 flex flex-wrap items-center justify-between gap-2 text-[var(--color-text-dim)]">
         <span>
-          {neetcode.totalSolvedOrSubmissions} total solved · last updated {neetcode.lastUpdated}
+          {neetcode.totalSolvedOrSubmissions} total submissions · last updated {neetcode.lastUpdated}
         </span>
         <span className="flex items-center gap-1">
           Less
