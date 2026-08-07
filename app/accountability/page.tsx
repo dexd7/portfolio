@@ -26,14 +26,16 @@ export default async function AccountabilityPage() {
         {contributions ? (
           <ContributionStrip days={contributions} />
         ) : (
-          <p className="text-body text-[var(--color-text-dim)]">
-            GitHub isn&apos;t connected yet — set GITHUB_TOKEN and GITHUB_USERNAME.
-          </p>
+          <div className="bomb-console p-8 text-center">
+            <p className="bomb-led text-body text-[var(--bomb-warn)]">GitHub not connected</p>
+          </div>
         )}
       </Section>
 
       <Section index={2} label="NEETCODE — LAST 12 MONTHS">
-        <p className="text-body text-[var(--color-text-dim)]">Coming soon.</p>
+        <div className="bomb-console flex items-center justify-center border-dashed p-8 text-center">
+          <p className="bomb-led text-body text-[var(--bomb-warn)] opacity-70">Awaiting connection</p>
+        </div>
       </Section>
     </main>
   )
