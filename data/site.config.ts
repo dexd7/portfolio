@@ -37,7 +37,6 @@ export const site: SiteConfig = {
     {
       id: 'github',
       label: 'GitHub',
-      // TODO(vihaan): confirm the handle — repos are still being published.
       href: 'https://github.com/dexd7',
       handle: '@dexd7',
     },
