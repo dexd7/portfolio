@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
 import { buildWeekGrid, LEVEL_OPACITY, levelForCount } from '@/lib/calendarHeatmap'
 import neetcode from '@/data/neetcode-heatmap.json'
 
@@ -18,6 +21,18 @@ export function NeetcodeHeatmap() {
   const { weeks, monthLabels } = buildWeekGrid(neetcode.activityByDate, WEEKS)
   const activeDays = Object.values(neetcode.activityByDate).filter((c) => c > 0).length
   const colWidth = CELL + GAP
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // The grid is wider than a mobile viewport, so overflow-x-auto starts
+  // scrolled to its default (leftmost = oldest weeks) — on a 53-week grid
+  // most of that early range has no data yet, so mobile users landed on a
+  // blank-looking widget unless they scrolled right themselves. Anchor to
+  // the most recent weeks on mount instead, matching GitHub's own mobile
+  // behavior for its contribution calendar.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollLeft = el.scrollWidth
+  }, [])
 
   return (
     <div className="activity-card p-6">
@@ -33,7 +48,7 @@ export function NeetcodeHeatmap() {
         </span>
       </div>
 
-      <div className="mt-4 overflow-x-auto">
+      <div ref={scrollRef} className="mt-4 overflow-x-auto">
         <div style={{ width: weeks.length * colWidth, minWidth: weeks.length * colWidth }}>
           <div className="relative h-4" style={{ width: weeks.length * colWidth }}>
             {monthLabels.map(({ weekIndex, label }) => (
