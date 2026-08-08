@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: 'A running, public record of GitHub and NeetCode activity — no cherry-picking, just what actually happened.',
 }
 
-export const revalidate = 3600
+export const revalidate = 300
 
 export default async function AccountabilityPage() {
   const contributions = await getRecentContributions(7)

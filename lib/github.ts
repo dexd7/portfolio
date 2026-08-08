@@ -49,7 +49,7 @@ export async function getRecentContributions(days = 7): Promise<ContributionDay[
         query: QUERY,
         variables: { login, from: from.toISOString(), to: to.toISOString() },
       }),
-      next: { revalidate: 3600 },
+      next: { revalidate: 300 },
     })
 
     if (!res.ok) return null
