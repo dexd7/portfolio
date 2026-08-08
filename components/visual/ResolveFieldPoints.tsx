@@ -36,35 +36,39 @@ const WANDER_SPEED = 0.004
 // spring-back model: nothing ever pulls a node back toward where it was:
 // once pushed, it keeps coasting on its own momentum until the impulse
 // naturally bleeds off, then it's back to ambient drift, not "home."
-// Widened from 0.22: a node now starts moving while the cursor is still
-// approaching it, rather than only once the cursor is nearly on top of it.
-// Half the perceived "my cursor sits there before anything happens" was
-// simply this zone being too tight to enter early.
-const REPEL_RADIUS = 0.34
-// RESPONSE TIME, not speed. Time to go from rest to MAX_IMPULSE_SPEED under
-// pure acceleration is (cap / accel): at the old 0.5 that was 0.14/0.5 =
-// 0.28s of *full-strength* contact, and realistically ~0.45s once the
-// distance falloff is averaged in — nearly half a second of ramp during
-// which the node is crawling at a speed too low to perceive. That lag was
-// the entire complaint. At 9.0 the same ramp is 0.14/9 = ~16ms, about one
-// frame, so a node reacts on contact instead of winding up. The cap below
-// is unchanged, so nothing actually moves any faster than before — it just
-// gets to its speed immediately. This is what makes it read as a real
-// repulsion field rather than something slowly noticing the cursor.
-const PUSH_ACCEL = 9.0
-// Caps impulse speed so repeatedly hovering the same node can't launch it
-// off-screen — each additional push adds less once already near the cap.
-// At 0.14, a maxed-out node crosses one full screen height in ~7s.
-const MAX_IMPULSE_SPEED = 0.14
-// exp(-DAMPING_RATE * dt) each frame — frame-rate independent decay.
-// Raised from 0.18 (half-life 3.9s, ~13s to bleed off) to 0.5: half-life
-// ~1.4s, ~10% left at ~4.6s. With the near-instant accel above, a decay
-// that slow smeared every push into a long tail, so the field accumulated
-// displacement and no single interaction read as its own cause-and-effect
-// event. Faster decay is what makes each push legible as a discrete
-// "pushed, coasted, settled" — the coast is still clearly visible, it just
-// resolves before the next interaction instead of stacking with it.
-const DAMPING_RATE = 0.5
+// Widened from 0.22: a node starts moving while the cursor is still
+// approaching rather than only once the cursor is nearly on top of it.
+const REPEL_RADIUS = 0.3
+// RESPONSE TIME, not speed. Time from rest to a given speed under pure
+// acceleration is (speed / accel): at the old 0.5 that was 0.14/0.5 =
+// 0.28s of *full-strength* contact, ~0.45s once the distance falloff is
+// averaged in — nearly half a second of ramp during which the node crawls
+// too slowly to perceive. That lag was the whole "my cursor sits there
+// before anything happens" complaint. At 25 even the strongest near-field
+// push saturates in ~30ms (about two frames), so nodes react on contact
+// instead of winding up. Accel governs *how fast a node reaches* its
+// speed; the caps below govern what that speed actually is.
+const PUSH_ACCEL = 25
+// Peak impulse speed, reached only with the cursor essentially on top of a
+// node. Scaled by proximity SQUARED (see the frame loop), so the field has
+// a real gradient instead of one flat speed everywhere inside the radius:
+// grazing the fringe is a nudge, closing in genuinely throws the node.
+// The old model capped every in-radius node at the same 0.14 no matter how
+// close the cursor was, which is why proximity didn't read as aggression.
+const MAX_PUSH_SPEED = 0.8
+// Absolute safety ceiling on accumulated impulse, independent of distance —
+// stops repeated pushes on an already-coasting node from compounding into
+// something that rockets off-screen.
+const HARD_MAX_IMPULSE_SPEED = 1.0
+// exp(-DAMPING_RATE * dt) each frame — frame-rate independent decay. Total
+// coast distance after a push is (speed / DAMPING_RATE), so at 1.2 a
+// full-strength 0.8 push carries ~0.67 screen-heights before settling —
+// punchy and clearly ballistic, but it resolves in about a second instead
+// of smearing into the next interaction. Raised from 0.18 (half-life 3.9s):
+// with the much higher speeds above, that slow a decay let displacement
+// accumulate across the whole field and no single push read as its own
+// cause-and-effect event.
+const DAMPING_RATE = 1.2
 
 // Scroll parallax: scrolling shifts every node's Y by this fraction of the
 // scroll delta (in height-units), on top of whatever the physics sim is
@@ -303,9 +307,18 @@ export function ResolveFieldPoints({
     prevScrollY.current = scrollY.current
     const scrollShiftY = scrollDeltaHeightUnits * SCROLL_PARALLAX_FACTOR
 
+    // NDC spans +/-1 across the VIEWPORT, so it must be scaled by the
+    // viewport half-extent (aspect/2 horizontally, 0.5 vertically) — NOT by
+    // fieldHalfW/fieldHalfH, which include MARGIN and describe the larger
+    // wrap-around field extending past the screen edges. Using the field
+    // extent here stretched the cursor's effective position outward from
+    // center by 1.6x vertically: correct at dead center, off by 0.15 at
+    // mid-screen, and off by a full 0.3 (larger than REPEL_RADIUS itself)
+    // at the top/bottom edges. That's what made nodes right under the
+    // cursor sit still while nodes further away reacted instead.
     if (pointerEnabled && pointerActive.current) {
-      pointerWorld.current.x = pointerNdc.current.x * fieldHalfW
-      pointerWorld.current.y = pointerNdc.current.y * fieldHalfH
+      pointerWorld.current.x = pointerNdc.current.x * (aspect / 2)
+      pointerWorld.current.y = pointerNdc.current.y * 0.5
     }
     const pointerX = pointerWorld.current.x
     const pointerY = pointerWorld.current.y
@@ -322,21 +335,45 @@ export function ResolveFieldPoints({
         const dy = posY[i]! - pointerY
         const dist = Math.hypot(dx, dy)
         if (dist < REPEL_RADIUS && dist > 1e-5) {
-          const t = 1 - dist / REPEL_RADIUS
-          // sqrt, not smoothstep: rises fast and stays strong across most of
-          // the radius instead of only near-full-strength right at the
-          // cursor — smoothstep's slow start read as a sluggish trigger.
-          const falloff = Math.sqrt(t)
-          impulseVelX[i]! += (dx / dist) * PUSH_ACCEL * falloff * dt
-          impulseVelY[i]! += (dy / dist) * PUSH_ACCEL * falloff * dt
+          const speedBefore = Math.hypot(impulseVelX[i]!, impulseVelY[i]!)
+          impulseVelX[i]! += (dx / dist) * PUSH_ACCEL * dt
+          impulseVelY[i]! += (dy / dist) * PUSH_ACCEL * dt
+
+          // The gradient lives here, in a proximity-scaled ceiling, rather
+          // than in the acceleration: accel is deliberately high enough to
+          // saturate within a frame or two at any distance (that's the
+          // response time), so if the ceiling were flat every in-radius
+          // node would end up at the same speed and closing in on a node
+          // would feel identical to grazing it. Squaring proximity
+          // concentrates the strength near the cursor — at the fringe the
+          // ceiling is near zero (so there's no pop at the radius edge),
+          // at half the radius it's a quarter strength, and only right on
+          // top of a node does it reach MAX_PUSH_SPEED.
+          const proximity = 1 - dist / REPEL_RADIUS
+          const localCap = MAX_PUSH_SPEED * proximity * proximity
+
+          // max(localCap, speedBefore): the push may raise a node up to
+          // this distance's ceiling, but must never drag an already-faster
+          // node back DOWN to it. Without that, a node thrown hard from
+          // point-blank range would be throttled frame by frame as it
+          // coasts outward into weaker parts of the field — a braking
+          // force, which is exactly the spring-back behavior this whole
+          // momentum model exists to avoid.
+          const cap = Math.max(localCap, speedBefore)
+          const speedAfter = Math.hypot(impulseVelX[i]!, impulseVelY[i]!)
+          if (speedAfter > cap) {
+            const k = cap / speedAfter
+            impulseVelX[i]! *= k
+            impulseVelY[i]! *= k
+          }
         }
       }
 
-      // 2) Cap impulse speed so repeated hovering can't fling a node
-      // off-screen — each further push adds progressively less once near cap.
+      // 2) Absolute ceiling, applied regardless of cursor distance, so
+      // repeated pushes can't compound a node into escaping the field.
       const impulseSpeed = Math.hypot(impulseVelX[i]!, impulseVelY[i]!)
-      if (impulseSpeed > MAX_IMPULSE_SPEED) {
-        const k = MAX_IMPULSE_SPEED / impulseSpeed
+      if (impulseSpeed > HARD_MAX_IMPULSE_SPEED) {
+        const k = HARD_MAX_IMPULSE_SPEED / impulseSpeed
         impulseVelX[i]! *= k
         impulseVelY[i]! *= k
       }
