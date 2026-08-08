@@ -8,6 +8,14 @@ const DAY_ROW_LABEL: Record<number, string> = { 1: 'Mon', 3: 'Wed', 5: 'Fri' }
 const WEEKS = 53
 const CELL = 11
 const GAP = 3
+const ROW_LABEL_WIDTH = 24
+const ROW_LABEL_MARGIN = 4 // mr-1 on the day-row-label column below
+// Week 0's cells sit to the right of the day-row-label column (width + its
+// margin + the flex gap to the first week), but the month-label row above
+// has no such column — without this offset, month labels render ~2 columns
+// left of the data they're supposed to sit over (July's label over August's
+// cells, etc).
+const ROW_LABEL_OFFSET = ROW_LABEL_WIDTH + ROW_LABEL_MARGIN + GAP
 
 /**
  * NeetCode's own progress-page heatmap layout, recolored onto this site's
@@ -50,12 +58,12 @@ export function NeetcodeHeatmap() {
 
       <div ref={scrollRef} className="mt-4 overflow-x-auto">
         <div style={{ width: weeks.length * colWidth, minWidth: weeks.length * colWidth }}>
-          <div className="relative h-4" style={{ width: weeks.length * colWidth }}>
+          <div className="relative h-4" style={{ width: weeks.length * colWidth + ROW_LABEL_OFFSET }}>
             {monthLabels.map(({ weekIndex, label }) => (
               <span
                 key={`${weekIndex}-${label}`}
                 className="text-label absolute top-0 text-[var(--color-text-dim)]"
-                style={{ left: weekIndex * colWidth }}
+                style={{ left: ROW_LABEL_OFFSET + weekIndex * colWidth }}
               >
                 {label}
               </span>
@@ -63,7 +71,7 @@ export function NeetcodeHeatmap() {
           </div>
 
           <div className="flex" style={{ gap: GAP }}>
-            <div className="relative mr-1" style={{ width: 24 }}>
+            <div className="relative mr-1" style={{ width: ROW_LABEL_WIDTH }}>
               {[1, 3, 5].map((row) => (
                 <span
                   key={row}
