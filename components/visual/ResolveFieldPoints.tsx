@@ -55,14 +55,17 @@ const PUSH_ACCEL = 25
 // grazing the fringe is a nudge, closing in genuinely throws the node.
 // The old model capped every in-radius node at the same 0.14 no matter how
 // close the cursor was, which is why proximity didn't read as aggression.
-const MAX_PUSH_SPEED = 0.8
+// Tuned down from 0.8, which read as too fast — note this is purely the
+// SPEED knob and is independent of PUSH_ACCEL above (the response-time
+// knob), so lowering it keeps the instant on-contact reaction intact.
+const MAX_PUSH_SPEED = 0.45
 // Absolute safety ceiling on accumulated impulse, independent of distance —
 // stops repeated pushes on an already-coasting node from compounding into
 // something that rockets off-screen.
-const HARD_MAX_IMPULSE_SPEED = 1.0
+const HARD_MAX_IMPULSE_SPEED = 0.6
 // exp(-DAMPING_RATE * dt) each frame — frame-rate independent decay. Total
 // coast distance after a push is (speed / DAMPING_RATE), so at 1.2 a
-// full-strength 0.8 push carries ~0.67 screen-heights before settling —
+// full-strength 0.45 push carries ~0.38 screen-heights before settling —
 // punchy and clearly ballistic, but it resolves in about a second instead
 // of smearing into the next interaction. Raised from 0.18 (half-life 3.9s):
 // with the much higher speeds above, that slow a decay let displacement
