@@ -8,7 +8,6 @@ import { buildFieldNodes } from './resolveFieldGeometry'
 interface ResolveFieldPointsProps {
   colorStatic: string
   colorSignal: string
-  colorBackground: string
   pointerEnabled: boolean
   containerRef: RefObject<HTMLDivElement | null>
 }
@@ -37,24 +36,35 @@ const WANDER_SPEED = 0.004
 // spring-back model: nothing ever pulls a node back toward where it was:
 // once pushed, it keeps coasting on its own momentum until the impulse
 // naturally bleeds off, then it's back to ambient drift, not "home."
-const REPEL_RADIUS = 0.22
-// High accel + a low speed cap is the combination that reads as "fast to
-// trigger, gentle once moving": a node reaches MAX_IMPULSE_SPEED in well
-// under half a second of full-strength contact regardless of what that cap
-// is, so keeping accel high and only lowering the cap preserves the snappy
-// reaction while making the resulting drift itself slow — the earlier
-// 1.7/0.5 pairing triggered fast but then moved fast too, reading as the
-// node "disappearing" within seconds.
-const PUSH_ACCEL = 0.5
+// Widened from 0.22: a node now starts moving while the cursor is still
+// approaching it, rather than only once the cursor is nearly on top of it.
+// Half the perceived "my cursor sits there before anything happens" was
+// simply this zone being too tight to enter early.
+const REPEL_RADIUS = 0.34
+// RESPONSE TIME, not speed. Time to go from rest to MAX_IMPULSE_SPEED under
+// pure acceleration is (cap / accel): at the old 0.5 that was 0.14/0.5 =
+// 0.28s of *full-strength* contact, and realistically ~0.45s once the
+// distance falloff is averaged in — nearly half a second of ramp during
+// which the node is crawling at a speed too low to perceive. That lag was
+// the entire complaint. At 9.0 the same ramp is 0.14/9 = ~16ms, about one
+// frame, so a node reacts on contact instead of winding up. The cap below
+// is unchanged, so nothing actually moves any faster than before — it just
+// gets to its speed immediately. This is what makes it read as a real
+// repulsion field rather than something slowly noticing the cursor.
+const PUSH_ACCEL = 9.0
 // Caps impulse speed so repeatedly hovering the same node can't launch it
 // off-screen — each additional push adds less once already near the cap.
 // At 0.14, a maxed-out node crosses one full screen height in ~7s.
 const MAX_IMPULSE_SPEED = 0.14
 // exp(-DAMPING_RATE * dt) each frame — frame-rate independent decay.
-// Halves in ~3.9s, ~10% remains at ~12.8s: long enough to clearly read as
-// "still floating from that push," short enough to settle back to ambient
-// drift well before the next interaction.
-const DAMPING_RATE = 0.18
+// Raised from 0.18 (half-life 3.9s, ~13s to bleed off) to 0.5: half-life
+// ~1.4s, ~10% left at ~4.6s. With the near-instant accel above, a decay
+// that slow smeared every push into a long tail, so the field accumulated
+// displacement and no single interaction read as its own cause-and-effect
+// event. Faster decay is what makes each push legible as a discrete
+// "pushed, coasted, settled" — the coast is still clearly visible, it just
+// resolves before the next interaction instead of stacking with it.
+const DAMPING_RATE = 0.5
 
 // Scroll parallax: scrolling shifts every node's Y by this fraction of the
 // scroll delta (in height-units), on top of whatever the physics sim is
@@ -109,27 +119,15 @@ function createCircleSprite(): THREE.CanvasTexture {
 export function ResolveFieldPoints({
   colorStatic,
   colorSignal,
-  colorBackground,
   pointerEnabled,
   containerRef,
 }: ResolveFieldPointsProps) {
-  const {
-    count,
-    normX,
-    normY,
-    baseVelX,
-    baseVelY,
-    wanderFreqX,
-    wanderFreqY,
-    wanderPhaseX,
-    wanderPhaseY,
-    depth,
-  } = useMemo(() => buildFieldNodes(), [])
+  const { count, normX, normY, baseVelX, baseVelY, wanderFreqX, wanderFreqY, wanderPhaseX, wanderPhaseY } =
+    useMemo(() => buildFieldNodes(), [])
   const n = count
 
   const colorStaticVec = useMemo(() => new THREE.Color(colorStatic), [colorStatic])
   const colorSignalVec = useMemo(() => new THREE.Color(colorSignal), [colorSignal])
-  const colorBackgroundVec = useMemo(() => new THREE.Color(colorBackground), [colorBackground])
 
   // Live position/velocity state — mutated in place every frame, never
   // reassigned, so this is stable across renders with no allocation.
@@ -193,21 +191,23 @@ export function ResolveFieldPoints({
     [colorStaticVec],
   )
 
-  // Each node's color depends only on theme + its static depth, and never
-  // changes after that — written directly into the GPU-backed buffer once
-  // here rather than recomputed every frame (this used to blend toward a
-  // cursor-proximity glow per-frame; static reads cleaner, so that's gone).
+  // Every node is exactly the signal color — one flat value, no per-node
+  // variation at all. Two earlier versions of this were removed: a
+  // per-frame cursor-proximity glow (distracting), and a static per-node
+  // `depth` lerp between background and signal meant to fake 3D depth,
+  // which just read as some nodes being randomly dimmer than others. Only
+  // the theme can change this, so it's written into the GPU-backed buffer
+  // once here and never touched by the frame loop.
   useEffect(() => {
     const colorAttr = pointsGeometry.getAttribute('color') as THREE.BufferAttribute
     const colorArr = colorAttr.array as Float32Array
     for (let i = 0; i < n; i++) {
-      const t = depth[i]!
-      colorArr[i * 3 + 0] = THREE.MathUtils.lerp(colorBackgroundVec.r, colorSignalVec.r, t)
-      colorArr[i * 3 + 1] = THREE.MathUtils.lerp(colorBackgroundVec.g, colorSignalVec.g, t)
-      colorArr[i * 3 + 2] = THREE.MathUtils.lerp(colorBackgroundVec.b, colorSignalVec.b, t)
+      colorArr[i * 3 + 0] = colorSignalVec.r
+      colorArr[i * 3 + 1] = colorSignalVec.g
+      colorArr[i * 3 + 2] = colorSignalVec.b
     }
     colorAttr.needsUpdate = true
-  }, [n, depth, colorBackgroundVec, colorSignalVec, pointsGeometry])
+  }, [n, colorSignalVec, pointsGeometry])
 
   // Pointer tracked on `window`, not R3F's canvas-scoped pointer — the
   // canvas has pointer-events-none (so it never blocks clicks on real

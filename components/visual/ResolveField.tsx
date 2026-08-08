@@ -33,7 +33,7 @@ interface NetworkInformationLike {
 export function ResolveField() {
   const containerRef = useRef<HTMLDivElement>(null)
   const reducedMotion = useReducedMotion()
-  const { colorStatic, colorSignal, colorBackground } = useThemeColors()
+  const { colorStatic, colorSignal } = useThemeColors()
 
   const [ready, setReady] = useState(false)
   const [visible, setVisible] = useState(true)
@@ -89,7 +89,6 @@ export function ResolveField() {
           dpr={dpr}
           colorStatic={colorStatic}
           colorSignal={colorSignal}
-          colorBackground={colorBackground}
           pointerEnabled={pointerEnabled}
           active={visible}
           containerRef={containerRef}

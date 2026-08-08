@@ -8,7 +8,6 @@ interface ResolveFieldCanvasProps {
   dpr: number
   colorStatic: string
   colorSignal: string
-  colorBackground: string
   pointerEnabled: boolean
   /** Pauses the render loop entirely when the tab is backgrounded. */
   active: boolean
@@ -33,7 +32,6 @@ export default function ResolveFieldCanvas({
   dpr,
   colorStatic,
   colorSignal,
-  colorBackground,
   pointerEnabled,
   active,
   containerRef,
@@ -72,7 +70,6 @@ export default function ResolveFieldCanvas({
       <ResolveFieldPoints
         colorStatic={colorStatic}
         colorSignal={colorSignal}
-        colorBackground={colorBackground}
         pointerEnabled={pointerEnabled}
         containerRef={containerRef}
       />

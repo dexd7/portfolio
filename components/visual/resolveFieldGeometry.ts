@@ -46,9 +46,13 @@ export interface FieldGeometry {
   wanderFreqY: Float32Array
   wanderPhaseX: Float32Array
   wanderPhaseY: Float32Array
-  /** Static per-node depth in [0.65, 1] — drives brightness only (this field is 2D; there's no real z to speak of). */
-  depth: Float32Array
 }
+// A static per-node `depth` in [0.65, 1] used to live here, lerping each
+// node's color between the page background and the signal color so the
+// field read as having faux 3D depth. Removed deliberately: the varying
+// brightness just looked like inconsistent nodes rather than depth, and a
+// single uniform color reads cleaner. Every node is now exactly the signal
+// color — don't reintroduce per-node color variation without being asked.
 
 export function buildFieldNodes(seed = 7): FieldGeometry {
   const rand = mulberry32(seed)
@@ -64,7 +68,6 @@ export function buildFieldNodes(seed = 7): FieldGeometry {
   const wanderFreqY = new Float32Array(count)
   const wanderPhaseX = new Float32Array(count)
   const wanderPhaseY = new Float32Array(count)
-  const depth = new Float32Array(count)
 
   for (let i = 0; i < count; i++) {
     normX[i] = rand() * 2 - 1
@@ -79,8 +82,6 @@ export function buildFieldNodes(seed = 7): FieldGeometry {
     wanderFreqY[i] = WANDER_FREQ_MIN + rand() * (WANDER_FREQ_MAX - WANDER_FREQ_MIN)
     wanderPhaseX[i] = rand() * Math.PI * 2
     wanderPhaseY[i] = rand() * Math.PI * 2
-
-    depth[i] = 0.65 + rand() * 0.35
   }
 
   return {
@@ -95,6 +96,5 @@ export function buildFieldNodes(seed = 7): FieldGeometry {
     wanderFreqY,
     wanderPhaseX,
     wanderPhaseY,
-    depth,
   }
 }
