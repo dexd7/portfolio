@@ -8,6 +8,14 @@ import './globals.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
+  // './' resolves per-route against metadataBase, so every page emits a
+  // self-referencing <link rel="canonical"> at the www host rather than
+  // inheriting one fixed URL. Without this the site emitted no canonical
+  // at all, leaving Google to choose a representative URL per page by
+  // itself — it kept the stale http:// apex for the homepage while using
+  // https://www for /work. A self-referencing canonical is the signal that
+  // consolidates all four host/scheme variants onto one.
+  alternates: { canonical: './' },
   title: {
     default: site.seo.title,
     template: `%s — ${site.name}`,

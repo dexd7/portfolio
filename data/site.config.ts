@@ -19,9 +19,17 @@ export const site: SiteConfig = {
   email: 'vihaansarin@gmail.com',
   phone: '+1 608-282-5559',
 
-  // TODO(vihaan): swap once the domain is purchased. Everything canonical
-  // derives from this — OG image URLs, sitemap, JSON-LD, RSS.
-  url: 'https://vihaansarin.com',
+  // MUST be the www host: the domain redirects apex -> www
+  // (http://vihaansarin.com -> https://vihaansarin.com -> https://www.…),
+  // so www is the only variant that answers 200. This was previously the
+  // apex, which meant metadataBase — and therefore every canonical, OG and
+  // sitemap URL derived from it — advertised a host that only ever
+  // redirects. Google then had no authoritative signal and picked a
+  // representative URL per page on its own, which is why search results
+  // showed http://vihaansarin.com for the homepage but
+  // https://www.vihaansarin.com for /work. Everything canonical derives
+  // from this — OG image URLs, sitemap, JSON-LD, RSS.
+  url: 'https://www.vihaansarin.com',
 
   availability: {
     available: true,
